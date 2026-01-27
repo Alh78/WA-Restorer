@@ -1,0 +1,78 @@
+import helper.types
+import mutagen.mp4
+import imagehash
+import hashlib
+import config
+import piexif
+import shutil
+import os
+
+
+hashing_algorithm = hashlib.sha256
+image_hashing_algorithm = imagehash.phash
+
+def generate_file_content_hash(file_name: str, chunk_size: int = config.DEFAULT_MEDIA_CHUNK_SIZE) -> bytes:
+    hashing_instance = hashing_algorithm()
+    
+    with open(file_name, "rb") as file_handle:
+        while content_chunk := file_handle.read(chunk_size):
+            hashing_instance.update(content_chunk)
+
+    return hashing_instance.digest()
+
+def generate_image_content_hash(file_name: str, hash_size: int = config.DEFAULT_IMAGE_HASH_SIZE) -> imagehash.ImageHash:
+    with PIL.Image.open(file_name) as image_file:
+        return image_hashing_algorithm(image_file, hash_size) 
+
+def read_file_message_lines(file_name: str):
+    with open(file_name, mode = "r", encoding = "utf-8") as file_handle:
+        file_handle.seek(0)
+        while file_content_chunk := file_handle.readline():
+            yield file_content_chunk
+
+
+def write_new_exif_data(source: str,
+                        destination: str,
+                        exif_data: helper.types.WPMediaExifData,
+                        add_owner: bool = False,
+                        edit_file_dates: bool = True):
+    if os.path.splitext(source)[-1].lower() in [".png", ".jpg", ".jpeg"]:
+        dumped_timestamp = exif_data.timestamp.strftime("%Y:%m:%d %H:%M:%S")
+
+        zeroth_ifd = {piexif.ImageIFD.DateTime: dumped_timestamp,
+                      piexif.ImageIFD.ImageDescription: u"Restored from Whatsapp Backup"}
+
+        if exif_data.device_brand is not None:
+            zeroth_ifd[piexif.ImageIFD.Make] = exif_data.device_brand
+        
+        if exif_data.device_model is not None:
+            zeroth_ifd[piexif.ImageIFD.Model] = exif_data.device_model
+
+        if add_owner:
+            zeroth_ifd[piexif.ImageIFD.Artist] = exif_data.owner.encode("utf-8")
+
+        exif_ifd = {piexif.ExifIFD.DateTimeOriginal: dumped_timestamp,
+                    piexif.ExifIFD.DateTimeDigitized: dumped_timestamp}
+
+        exif_dict = {"0th": zeroth_ifd, "Exif": exif_ifd} # piexif.dump completes the remaining fields as blank areas.
+
+        shutil.copy2(source, destination)
+        piexif.insert(piexif.dump(exif_dict), destination)
+
+    elif os.path.splitext(source)[-1].lower() in [".mp4", ".m4v", ".mov"]:
+        shutil.copy2(source, destination)
+
+        media_video_handle = mutagen.mp4.MP4(destination)
+
+        media_video_handle["\xa9day"] = exif_data.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+        media_video_handle["\xa9cmt"] = "Restored from Whatsapp Backup"
+
+        if add_owner:
+            media_video_handle["\xa9ART"] = exif_data.owner
+
+        media_video_handle.save()
+
+    if edit_file_dates:
+        os.utime(destination, (exif_data.timestamp.timestamp(), exif_data.timestamp.timestamp()))
+
+
