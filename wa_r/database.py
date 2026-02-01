@@ -172,11 +172,11 @@ class AttachedMessagesDatabaseAnalyzer:
                                             SELECT mf.rowid
                                             FROM MEDIA_FILES mf
                                             JOIN MESSAGES m ON m.MESSAGE_ID = mf.MESSAGE_ID
-                                            WHERE (m.MESSAGE_TIMESTAMP, mf.FILE_NAME_TIMESTAMP, mf.rowid) = (
+                                            WHERE (m.MESSAGE_TIMESTAMP, mf.FILE_NAME_TIMESTAMP, m.LINE_INDEX) = (
                                                 SELECT 
                                                     MIN(m2.MESSAGE_TIMESTAMP),
                                                     MIN(mf2.FILE_NAME_TIMESTAMP),
-                                                    MIN(mf2.rowid)
+                                                    MIN(m2.LINE_INDEX)
                                                 FROM MEDIA_FILES mf2
                                                 JOIN MESSAGES m2 ON m2.MESSAGE_ID = mf2.MESSAGE_ID
                                                 WHERE mf2.FILE_HASH = mf.FILE_HASH

@@ -78,7 +78,7 @@ class AttachedMessageData:
     file: WPFileData
 
 @dataclasses.dataclass(slots = True)
-class WPMediaExifData:
+class WPMediaMetaData:
     owner: str | types.NoneType
     device_brand: str | types.NoneType
     device_model: str | types.NoneType
@@ -96,3 +96,20 @@ class WPMediaExifData:
 
         if not isinstance(self.device_model, (str, types.NoneType)):
             raise TypeError(f"Expected str, {type(self.device_model).__name__} found")
+
+
+class MetadataDatePriority(enum.Enum):
+    MESSAGE = "message"
+    FILE_NAME = "file-name"
+    EARLIEST = "earliest"
+
+
+class ImageHashingAlgorithm(enum.Enum):
+    PHASH = "phash"
+    AHASH = "ahash"
+    WHASH = "whash"
+
+
+class VideoHashingAlgorithm(enum.Enum):
+    WHASH = "whash"
+

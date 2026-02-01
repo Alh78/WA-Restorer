@@ -6,7 +6,7 @@ import imagehash
 
 
 IMAGE_HASHING_ALGORITHMS = {wa_r.types.ImageHashingAlgorithm.PHASH: imagehash.phash,
-                            wa_r.types.ImageHashingAlgorithm.AHASH: imagehash.ahash,
+                            wa_r.types.ImageHashingAlgorithm.AHASH: imagehash.average_hash,
                             wa_r.types.ImageHashingAlgorithm.WHASH: imagehash.whash}
 
 

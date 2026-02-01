@@ -1,29 +1,10 @@
-import wa_r.types
 import mutagen.mp4
-import imagehash
+import wa_r.types
 import datetime
-import hashlib
-import config
 import piexif
 import shutil
 import os
 
-
-hashing_algorithm = hashlib.sha256
-image_hashing_algorithm = imagehash.phash
-
-def generate_file_content_hash(file_name: str, chunk_size: int = config.DEFAULT_MEDIA_CHUNK_SIZE) -> bytes:
-    hashing_instance = hashing_algorithm()
-    
-    with open(file_name, "rb") as file_handle:
-        while content_chunk := file_handle.read(chunk_size):
-            hashing_instance.update(content_chunk)
-
-    return hashing_instance.digest()
-
-def generate_image_content_hash(file_name: str, hash_size: int = config.DEFAULT_IMAGE_HASH_SIZE) -> imagehash.ImageHash:
-    with PIL.Image.open(file_name) as image_file:
-        return image_hashing_algorithm(image_file, hash_size) 
 
 def read_file_message_lines(file_name: str):
     with open(file_name, mode = "r", encoding = "utf-8") as file_handle:
@@ -34,7 +15,7 @@ def read_file_message_lines(file_name: str):
 
 def write_new_exif_data(source: str,
                         destination: str,
-                        exif_data: wa_r.types.WPMediaExifData,
+                        exif_data: wa_r.types.WPMediaMetaData,
                         add_owner: bool = False,
                         edit_file_dates: bool = True):
     if os.path.splitext(source)[-1].lower() in [".png", ".jpg", ".jpeg"]:

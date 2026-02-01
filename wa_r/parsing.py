@@ -6,8 +6,8 @@ import config
 import os
 import re
 
-generic_attached_message_pattern = re.compile(r"^(\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2})\s-\s([^:]+):\s(.*?)\s\(dosya ekli\)")
-native_attached_file_name_pattern = re.compile(r"^(\w{3})-(\d{8})-WA\d{4}.*?")
+generic_attached_message_pattern = re.compile(wa_r.constants.GENERIC_ATTACHED_MESSAGE_PATTERN)
+native_attached_file_name_pattern = re.compile(wa_r.constants.NATIVE_ATTACHED_FILE_NAME_PATTERN)
 
 def _parse_raw_message_data(line: str, line_index: int, message_pattern: re.Pattern) -> wa_r.types.RawMessageData:
     pattern_match = message_pattern.match(line)
@@ -65,21 +65,21 @@ def package_message_data_raw(sender: str, # This function should be called only 
                                                                              file_hash = file_hash)
                                              )
 
-def generate_media_exif_data(attached_message_data: wa_r.types.AttachedMessageData,
+def generate_media_meta_data(attached_message_data: wa_r.types.AttachedMessageData,
                              device_brand: str = None,
                              device_model: str = None,
-                             set_priority: config.EXIFTimePriority = config.EXIFTimePriority.GET_EARLIEST) -> wa_r.types.WPMediaExifData:
-    if set_priority == config.EXIFTimePriority.GET_EARLIEST:
+                             date_priority: wa_r.types.MetadataDatePriority = wa_r.constants.DEFAULT_METADATA_DATE_PRIORITY) -> wa_r.types.WPMediaMetaData:
+    if date_priority == wa_r.types.MetadataDatePriority.EARLIEST:
         if (attached_message_data.file.file_meta_data.file_name_timestamp + datetime.timedelta(days = 1)) < attached_message_data.message_date:
             timestamp_to_add = attached_message_data.file.file_meta_data.file_name_timestamp
 
         else:
             timestamp_to_add = attached_message_data.message_date
 
-    elif set_priority == config.EXIFTimePriority.MESSAGE_PRIORITIZED:
+    elif date_priority == wa_r.types.MetadataDatePriority.MESSAGE:
         timestamp_to_add = attached_message_data.message_date
 
-    elif set_priority == config.EXIFTimePriority.FILE_NAME_PRIORITIZED:
+    elif date_priority == wa_r.types.MetadataDatePriority.FILE_NAME:
         timestamp_to_add = attached_message_data.file.file_meta_data.file_name_timestamp
         
 
@@ -89,17 +89,17 @@ def generate_media_exif_data(attached_message_data: wa_r.types.AttachedMessageDa
     else:
         owner = attached_message_data.sender
 
-    return wa_r.types.WPMediaExifData(owner = owner,
-                                        device_brand = device_brand,
-                                        device_model = device_model,
-                                        timestamp = timestamp_to_add)
+    return wa_r.types.WPMediaMetaData(owner = owner,
+                                      device_brand = device_brand,
+                                      device_model = device_model,
+                                      timestamp = timestamp_to_add)
 
 
-def generate_media_exif_data_raw(owner: str = None,
+def generate_media_meta_data_raw(owner: str = None,
                                  device_brand: str = None,
                                  device_model: str = None,
-                                 timestamp: int = None) -> wa_r.types.WPMediaExifData:
-    return wa_r.types.WPMediaExifData(owner = owner,
+                                 timestamp: int = None) -> wa_r.types.WPMediaMetaData:
+    return wa_r.types.WPMediaMetaData(owner = owner,
                                         device_brand = device_brand,
                                         device_model = device_model,
                                         timestamp = datetime.datetime.fromtimestamp(timestamp_to_add))
