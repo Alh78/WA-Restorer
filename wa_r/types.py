@@ -13,11 +13,6 @@ class WPFileTypes(enum.Enum):
     AUDIO_FILE_TYPE = "AUD"
     NON_NATIVE_FILE_TYPE = "UNK"
 
-class EXIFTimePriority(enum.Enum):
-    MESSAGE_PRIORITIZED = 1
-    FILE_NAME_PRIORITIZED = 2
-    GET_EARLIEST = 3
-
 @dataclasses.dataclass(slots = True)
 class RawMessageData:
     date: datetime.datetime

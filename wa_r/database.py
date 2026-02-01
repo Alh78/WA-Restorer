@@ -1,7 +1,7 @@
-import helper.exceptions
+import wa_r.exceptions
 import sqlite3 as sql
-import helper.parsing
-import helper.types
+import wa_r.parsing
+import wa_r.types
 import datetime
 import logging
 import typing
@@ -162,7 +162,7 @@ class AttachedMessagesDatabaseAnalyzer:
     def filter_media_messages(self):
         self.database_log.info("Filtering messages containing media...")
         self.cursor.execute("DELETE FROM MEDIA_FILES WHERE FILE_TYPE NOT IN (?, ?)",
-                            (helper.types.WPFileTypes.IMAGE_FILE_TYPE, helper.types.WPFileTypes.VIDEO_FILE_TYPE))
+                            (wa_r.types.WPFileTypes.IMAGE_FILE_TYPE, wa_r.types.WPFileTypes.VIDEO_FILE_TYPE))
         self.cursor.execute("DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT DISTINCT MESSAGE_ID FROM MEDIA_FILES)")
 
     def filter_media_origin_messages(self): # Destructive. This method cannot be done without applying origination.
@@ -220,8 +220,8 @@ class AttachedMessagesDatabaseAnalyzer:
         return self.cursor.fetchone()[0]
 
 
-    def get_sender_message_by_attached_file_name(self, file_name: str) -> typing.Union[helper.types.AttachedMessageData,
-                                                                                       typing.List[helper.types.AttachedMessageData]]:
+    def get_sender_message_by_attached_file_name(self, file_name: str) -> typing.Union[wa_r.types.AttachedMessageData,
+                                                                                       typing.List[wa_r.types.AttachedMessageData]]:
         self.database_log.debug(f"Getting messages attached with \"{file_name}\" file...")
         self.database_log.debug("Sending SELECT query to database...")
         self.cursor.execute("""SELECT 
@@ -241,14 +241,14 @@ class AttachedMessagesDatabaseAnalyzer:
         messages_attached_with_specified_file = self.cursor.fetchall() # Assuming this data is small enough.
 
         self.database_log.debug("Parsing fetched datas from databases and converting to AttachedMessageData type...")
-        specified_message_datas = [helper.parsing.package_message_data_raw(*message) for message in messages_attached_with_specified_file]
+        specified_message_datas = [wa_r.parsing.package_message_data_raw(*message) for message in messages_attached_with_specified_file]
 
         return specified_message_datas if len(specified_message_datas) != 1 else specified_message_datas[0]
 
     def get_sender_media_messages_between_dates(self, start_date: datetime.datetime,
                                                       end_date: datetime.datetime,
-                                                      sender_id: int) -> typing.Union[helper.types.AttachedMessageData,
-                                                                                      typing.List[helper.types.AttachedMessageData]]:
+                                                      sender_id: int) -> typing.Union[wa_r.types.AttachedMessageData,
+                                                                                      typing.List[wa_r.types.AttachedMessageData]]:
         self.database_log.debug("Sending SELECT query to database...")                                                                                      
         self.cursor.execute("""SELECT 
                                     s.SENDER_NAME,
@@ -267,7 +267,7 @@ class AttachedMessagesDatabaseAnalyzer:
         messages_attached_in_specified_range = self.cursor.fetchall() # Assuming this data is small enough.
 
         self.database_log.debug("Parsing fetched datas from databases and converting to AttachedMessageData type...")
-        specified_message_datas = [helper.parsing.package_message_data_raw(*message) for message in messages_attached_in_specified_range]
+        specified_message_datas = [wa_r.parsing.package_message_data_raw(*message) for message in messages_attached_in_specified_range]
 
         return specified_message_datas if len(specified_message_datas) != 1 else specified_message_datas[0]
 
@@ -358,7 +358,7 @@ class AttachedMessagesDatabaseCreator:
 
             except ValueError: #This means there's a conflict between cache and database, so cache must be cleaned to prevent wrong write operations on DB.
                 self.database_log.critical(f"Conflict between database and cache has been detected on Sender(name=\"{sender_name}\", id={sender_id}) ")
-                raise helper.exceptions.DatabaseCacheConflictException()               # Code must be aborted
+                raise wa_r.exceptions.DatabaseCacheConflictException()               # Code must be aborted
                 # This won't be wrapped.
 
             else:
@@ -372,13 +372,13 @@ class AttachedMessagesDatabaseCreator:
         self.conn.commit()
         self.database_log.info("Committing successful.")
 
-    def add_attached_message(self, message: helper.types.AttachedMessageData, commit_now = False) -> None:
+    def add_attached_message(self, message: wa_r.types.AttachedMessageData, commit_now = False) -> None:
         self.database_log.debug(f"Adding Message(line_index={message.line_index}) to database...")
 
         try:
             self.add_message_sender(message.sender, commit_now) 
         
-        except helper.exceptions.SenderAdditionException:
+        except wa_r.exceptions.SenderAdditionException:
             self.database_log.error(f"Failed to insert Sender(sender_name=\"{message.sender}\") of Message(line_index={message.line_index}) into the database.")
             self.database_log.warning(f"Message(line_index={message.line_index}) and its attachments won't be added to database.")
             return
@@ -412,7 +412,7 @@ class AttachedMessagesDatabaseCreator:
             sender_id = self.cursor.fetchone() #Checkout
 
             if not sender_id: #If list is empty, something wrong happened. Abort the process
-                raise helper.exceptions.SenderAdditionError()
+                raise wa_r.exceptions.SenderAdditionError()
             
             self.database_log.debug(f"Insertion query for Sender(sender_name=\"{sender_name}\") sent!")
 
@@ -429,7 +429,7 @@ class AttachedMessagesDatabaseCreator:
             self.database_log.debug(f"Sender(sender_name=\"{sender_name}\") already exists in cache.")
 
 
-    def add_attached_file(self, file_data: helper.types.WPFileData, message_id: int) -> None: # ! MESSAGE ID MUST NOT TO BE BROKEN
+    def add_attached_file(self, file_data: wa_r.types.WPFileData, message_id: int) -> None: # ! MESSAGE ID MUST NOT TO BE BROKEN
         self.database_log.debug(f"Inserting new file attached to Message(id={message_id})...")
         self.cursor.execute("INSERT INTO MEDIA_FILES VALUES (?, ?, ?, ?, ?)", (file_data.file_meta_data.file_name,
                                                                                file_data.file_hash,

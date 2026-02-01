@@ -1,9 +1,9 @@
-import helper.exceptions
-import helper.database
-import helper.parsing
-import helper.types
-import helper.file
-import helper.log
+import wa_r.exceptions
+import wa_r.database
+import wa_r.parsing
+import wa_r.types
+import wa_r.file
+import wa_r.log
 import argparse
 import logging
 import typing
@@ -18,7 +18,7 @@ def write_restored_metadata_to_file(file_name: str, device_brand: str = None, de
 
 	if isinstance(message_data, list) and message_data:
 		writer_log.critical(f"File(file_name=\"{file_name}\") contains multiple origins in the database!")
-		raise helper.exceptions.MultipleOriginFilesException(f"File \"{file_name}\" have multiple origins in the database!")
+		raise wa_r.exceptions.MultipleOriginFilesException(f"File \"{file_name}\" have multiple origins in the database!")
 
 	if not message_data: # This means message data returned as a blank list from database,  which means this file doesn't have any record on DB.
 		writer_log.error(f"File(file_name=\"{file_name}\") doesn't have any record in the database.")
@@ -26,18 +26,18 @@ def write_restored_metadata_to_file(file_name: str, device_brand: str = None, de
 		return
 
 	writer_log.debug("Generating WPMediaExifData instance using fetched origin message data...")
-	exif_data = helper.parsing.generate_media_exif_data(message_data, device_brand, device_model)
+	exif_data = wa_r.parsing.generate_media_exif_data(message_data, device_brand, device_model)
 
 	writer_log.debug(f"Writing new File(file_path=\"{os.path.abspath(os.path.join(app_args.destination_directory, file_name))}\")...")
 
 	try:
-		helper.file.write_new_exif_data(os.path.abspath(os.path.join(app_args.media_directory, file_name)),
+		wa_r.file.write_new_exif_data(os.path.abspath(os.path.join(app_args.media_directory, file_name)),
 										os.path.abspath(os.path.join(app_args.destination_directory, file_name)),
 										exif_data,
 										add_owner = True,
 										edit_file_dates = True)
 
-	except helper.exceptions.FileAlreadyContainsMetaDataException:
+	except wa_r.exceptions.FileAlreadyContainsMetaDataException:
 		pass
 		"""writer_log.error(f"File(file_name=\"{file_name}\") already contains EXIF data.")
 								writer_log.warning("File(\"{file_name}\") will be skipped during the process.")
@@ -61,10 +61,10 @@ if __name__ == "__main__":
 	main_log = logging.getLogger("main")
 	main_log.setLevel(logging.INFO)
 
-	helper.log.initialize_restorer_file_handler()
+	wa_r.log.initialize_restorer_file_handler()
 
-	main_log.addHandler(helper.log.basic_console_handler)
-	main_log.addHandler(helper.log.restorer_file_handler)
+	main_log.addHandler(wa_r.log.basic_console_handler)
+	main_log.addHandler(wa_r.log.restorer_file_handler)
 
 	main_log.info(f"Reference database file: {app_args.reference_database_file}")
 	main_log.info(f"Media directory: {app_args.destination_directory}")
@@ -100,23 +100,23 @@ if __name__ == "__main__":
 
 	writer_log = logging.getLogger("FileMetadataWriter")
 	writer_log.setLevel(logging.INFO)
-	writer_log.addHandler(helper.log.basic_console_handler)
-	writer_log.addHandler(helper.log.restorer_file_handler)
+	writer_log.addHandler(wa_r.log.basic_console_handler)
+	writer_log.addHandler(wa_r.log.restorer_file_handler)
 
 	main_log.info("Initializing database class...")
 
-	reference_db = helper.database.AttachedMessagesDatabaseAnalyzer(app_args.reference_database_file)
+	reference_db = wa_r.database.AttachedMessagesDatabaseAnalyzer(app_args.reference_database_file)
 	reference_db.database_log.setLevel(logging.INFO)
-	reference_db.database_log.addHandler(helper.log.basic_console_handler)
-	reference_db.database_log.addHandler(helper.log.restorer_file_handler)
+	reference_db.database_log.addHandler(wa_r.log.basic_console_handler)
+	reference_db.database_log.addHandler(wa_r.log.restorer_file_handler)
 
 	main_log.info("Starting to restoration...")
 
 	try:
 		for media_file_name in os.listdir(app_args.media_directory):
-			write_restored_metadata_to_file(media_file_name, "samsung", "SM721-B")
+			write_restored_metadata_to_file(media_file_name)
 
-	except helper.exceptions.MultipleOriginFilesException:
+	except wa_r.exceptions.MultipleOriginFilesException:
 		main_log.warning("Please filter the database file specified before using restorer.")
 
 	except:
