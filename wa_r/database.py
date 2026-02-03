@@ -189,14 +189,27 @@ class AttachedMessagesDatabaseAnalyzer:
                                             FROM MEDIA_FILES
                                         );""")
 
-    def filter_media_messages_manually(self, included_files_list: list): # Destructive
+    def filter_media_messages_manually(self, included_files_list: typing.Iterable[str]): # Destructive, WIP
         self.database_log.info("Filtering manually...")
         self.database_log.debug("Filtering whitelist", extra = {"included_files": included_files_list})
-        self.cursor.execute("CREATE TABLE TEMP_REMAINING_FILES (FILE_NAME TEXT)")
-        self.cursor.executemany("INSERT INTO TEMP_REMAINING_FILES VALUES (?)", [(i,) for i in included_files_list])
-        self.cursor.executescript("""DELETE FROM MEDIA_FILES WHERE FILE_NAME NOT IN (SELECT FILE_NAME FROM TEMP_REMAINING_FILES);
+        self.cursor.executescript("""DROP TABLE IF EXISTS INCLUDED_FILES;
+                                     CREATE TEMPORARY TABLE INCLUDED_FILES (FILE_NAME TEXT UNIQUE);""")
+        self.cursor.executemany("INSERT INTO INCLUDED_FILES VALUES (?)", [(i,) for i in included_files_list])
+
+        self.cursor.execute("SELECT FILE_NAME FROM INCLUDED_FILES EXCEPT SELECT FILE_NAME FROM MEDIA_FILES")
+        included_files_missing_in_db = [file_name[0] for file_name in self.cursor.fetchall()]
+    
+        if included_files_missing_in_db:
+            self.database_log.warning(f"{len(included_files_missing_in_db)} files in whitelist don't exist in database.", extra = {"missing_whitelist_files_preview": included_files_missing_in_db[:25]})
+
+            if len(included_files_missing_in_db) > 25:
+                self.database_log.warning("For seeing other whitelist files missing in database, set logging level to DEBUG.")
+                self.database_log.debug("Full list of missing files:", extra = {"missing_whitelist_files": included_files_missing_in_db})
+
+
+        self.cursor.executescript("""DELETE FROM MEDIA_FILES WHERE FILE_NAME NOT IN (SELECT FILE_NAME FROM INCLUDED_FILES);
                                      DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT MESSAGE_ID FROM MEDIA_FILES);
-                                     DROP TABLE TEMP_REMAINING_FILES;
+                                     DROP TABLE INCLUDED_FILES;
                                   """)
 
     def get_senders_message_count(self, sender_id: int, unique_media_messages: bool = False) -> int:
@@ -263,13 +276,27 @@ class AttachedMessagesDatabaseAnalyzer:
                                JOIN MEDIA_FILES mf ON m.MESSAGE_ID = mf.MESSAGE_ID
                                WHERE s.SENDER_ID = ? AND m.MESSAGE_TIMESTAMP BETWEEN ? AND ?""", (sender_id, start_date.timestamp(), end_date.timestamp()))
 
-        self.database_log.debug("Fetching all specifed messages in the time range...")
+        self.database_log.debug("Fetching all messages in the specified time range...")
         messages_attached_in_specified_range = self.cursor.fetchall() # Assuming this data is small enough.
 
         self.database_log.debug("Parsing fetched datas from databases and converting to AttachedMessageData type...")
         specified_message_datas = [wa_r.parsing.package_message_data_raw(*message) for message in messages_attached_in_specified_range]
 
         return specified_message_datas if len(specified_message_datas) != 1 else specified_message_datas[0]
+
+
+    def check_media_file_exists_by_file_name(self, file_name: str) -> bool: # WIP
+        self.cursor.execute("SELECT 1 FROM MEDIA_FILES WHERE FILE_NAME = ? LIMIT 1", (file_name,))
+        return bool(self.cursor.fetchone())
+
+    def check_media_files_exists_by_file_name(self, file_names_list: typing.Iterable[str]) -> typing.Dict[str, bool]: #WIP
+        self.cursor.executescript("""DROP TABLE IF EXISTS EXISTING_CHECK_FILES;
+                                     CREATE TEMPORARY TABLE EXISTING_CHECK_FILES (FILE_NAME TEXT UNIQUE);""")
+        self.cursor.executemany("INSERT INTO EXISTING_CHECK_FILES VALUES (?)", [(i,) for i in file_names_list])
+        self.cursor.execute("SELECT FILE_NAME, EXISTS(SELECT 1 FROM MEDIA_FILES mf WHERE ecf.FILE_NAME = mf.FILE_NAME) FROM EXISTING_CHECK_FILES ecf")
+        
+        return {file_name: bool(file_exists) for file_name, file_exists in self.cursor.fetchall()}
+
 
 
     def close(self) -> None:
