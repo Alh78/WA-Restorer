@@ -1,4 +1,5 @@
 import wa_r.constants
+import numpy as np
 import wa_r.types
 import PIL.Image
 import videohash
@@ -26,9 +27,10 @@ def generate_file_content_hash(file_name: str, chunk_size: int = wa_r.constants.
 
 def generate_image_content_hash(file_name: str,
                                 hashing_algorithm: wa_r.types.ImageHashingAlgorithm = wa_r.constants.DEFAULT_IMAGE_HASHING_ALGORITHM,
-                                hash_size: int = wa_r.constants.DEFAULT_IMAGE_HASH_SIZE) -> imagehash.ImageHash: #Normalize output
+                                hash_size: int = wa_r.constants.DEFAULT_IMAGE_HASH_SIZE) -> bytes: #Normalize output
     with PIL.Image.open(file_name) as image_file:
-        return IMAGE_HASHING_ALGORITHMS[hashing_algorithm](image_file, hash_size) 
+        hash_instance = IMAGE_HASHING_ALGORITHMS[hashing_algorithm](image_file, hash_size) 
+        return np.packbits(hash_instance.hash).tobytes()
 
 
 def generate_video_content_hash(file_name: str,
