@@ -71,7 +71,7 @@ class SendersCache:
         self.__message_senders_dict = dict()
         self.__message_senders_dict_reversed = dict()
 
-class AttachedMessagesDatabaseAnalyzer:
+class AttachedMessagesDatabaseProcessor:
     senders_cache = SendersCache()
 
     def __init__(self, file_name: str):
@@ -80,7 +80,7 @@ class AttachedMessagesDatabaseAnalyzer:
 
         self.__full_file_path = os.path.abspath(file_name)
 
-        self.database_log = logging.getLogger("AttachedMessagesDatabaseAnalyzer") # We will add handlers in main flow.
+        self.database_log = logging.getLogger("AttachedMessagesDatabaseProcessor") # We will add handlers in main flow.
 
         #self.database_log.warning("Before doing any operation on this database, please ensure you've copied initial database file to prevent potential data loss.")
 
@@ -89,6 +89,8 @@ class AttachedMessagesDatabaseAnalyzer:
         if not os.path.exists(self.__full_file_path):
             self.database_log.critical("Specified database file doesn't exist!")
             raise FileNotFoundError(self.__full_file_path)
+
+        self._media_hash_column_exists = False
 
         self.__conn = sql.connect(self.__full_file_path)
         self.__cursor = self.__conn.cursor()
@@ -212,6 +214,22 @@ class AttachedMessagesDatabaseAnalyzer:
                                      DROP TABLE INCLUDED_FILES;
                                   """)
 
+    def _ensure_media_hash_column(self):
+        if self._media_hash_column_exists:
+            return
+
+        self.cursor.execute("PRAGMA table_info(MEDIA_FILES)")
+        media_files_columns = {column[1] for column in self.cursor.fetchall()}
+
+        if "MEDIA_HASH" not in media_files_columns:
+            self.cursor.execute("ALTER TABLE MEDIA_FILES ADD COLUMN MEDIA_HASH BLOB")
+
+        self._media_hash_column_exists = True
+
+    def add_attached_message_media_hash(self, message: wa_r.types.AttachedMessageData, media_hash: bytes):
+        self._ensure_media_hash_column()
+        self.cursor.execute("UPDATE MEDIA_FILES SET MEDIA_HASH = ? WHERE FILE_NAME = ?", (media_hash, message.file_data.file_name))
+
     def get_senders_message_count(self, sender_id: int, unique_media_messages: bool = False) -> int:
         if unique_media_messages:
             self.cursor.execute("SELECT COUNT(DISTINCT FILE_HASH) FROM MESSAGES m INNER JOIN MEDIA_FILES mf ON m.MESSAGE_ID = mf.MESSAGE_ID WHERE SENDER_ID = ?", (sender_id,))
@@ -310,7 +328,7 @@ class AttachedMessagesDatabaseAnalyzer:
         self.conn.close()
 
 
-class AttachedMessagesDatabaseCreator:
+class AttachedMessagesDatabaseImporter:
     senders_cache = SendersCache()
 
     def __init__(self, file_name: str):
@@ -319,7 +337,7 @@ class AttachedMessagesDatabaseCreator:
 
         self.__full_file_path = os.path.abspath(file_name)
 
-        self.database_log = logging.getLogger("AttachedMessagesDatabaseCreator") # We will add handlers in main flow.
+        self.database_log = logging.getLogger("AttachedMessagesDatabaseImporter") # We will add handlers in main flow.
 
         self.database_log.info(f"Creating database file...", extra = {"path": self.__full_file_path})
         
