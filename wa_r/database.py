@@ -71,14 +71,16 @@ class SendersCache:
         self.__message_senders_dict = dict()
         self.__message_senders_dict_reversed = dict()
 
+
 class AttachedMessagesDatabaseProcessor:
-    senders_cache = SendersCache()
 
     def __init__(self, file_name: str):
         self.__file_name = os.path.basename(file_name)
         self.__file_path = os.path.dirname(file_name)
 
         self.__full_file_path = os.path.abspath(file_name)
+
+        self.senders = SendersCache()
 
         self.database_log = logging.getLogger("AttachedMessagesDatabaseProcessor") # We will add handlers in main flow.
 
@@ -131,7 +133,7 @@ class AttachedMessagesDatabaseProcessor:
             self.database_log.debug(f"Trying to add Sender(name=\"{sender_name}\", id={sender_id}) to the cache...")
             # We're putting try except stage here to be able to handle the situation more way better
             try:
-                self.senders_cache.add_message_sender(sender_name, sender_id) #!
+                self.senders.add_message_sender(sender_name, sender_id) #!
 
             except KeyError: # This sender is already placed in cache, so we can pass it. TODO: give detailed logs here
                 self.database_log.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) already exists in cache, skipping")
@@ -140,7 +142,7 @@ class AttachedMessagesDatabaseProcessor:
                 self.database_log.warning(f"Conflict between database and cache has been detected on Sender(name=\"{sender_name}\", id={sender_id})")
                 self.database_log.info("Due to conflict between database and cache, resetting senders cache and reloading...")
 
-                self.senders_cache.reset_cache()
+                self.senders.reset_cache()
                 self.load_cache()
 
             else:
@@ -319,7 +321,7 @@ class AttachedMessagesDatabaseProcessor:
 
     def close(self) -> None:
         self.database_log.info("Resetting senders cache...")
-        self.senders_cache.reset_cache()
+        self.senders.reset_cache()
 
         self.database_log.info("Auto-reverting applied and not committed changes...")
         self.revert_changes()
@@ -329,13 +331,14 @@ class AttachedMessagesDatabaseProcessor:
 
 
 class AttachedMessagesDatabaseImporter:
-    senders_cache = SendersCache()
 
     def __init__(self, file_name: str):
         self.__file_name = os.path.basename(file_name)
         self.__file_path = os.path.dirname(file_name)
 
         self.__full_file_path = os.path.abspath(file_name)
+
+        self.senders = SendersCache()
 
         self.database_log = logging.getLogger("AttachedMessagesDatabaseImporter") # We will add handlers in main flow.
 
@@ -396,7 +399,7 @@ class AttachedMessagesDatabaseImporter:
             self.database_log.debug(f"Trying to add Sender(name=\"{sender_name}\", id={sender_id}) to the cache...")
             # We're putting try except stage here to be able to handle the situation more way better
             try:
-                self.senders_cache.add_message_sender(sender_name, sender_id) #!
+                self.senders.add_message_sender(sender_name, sender_id) #!
 
             except KeyError: # This sender is already placed in cache, so we can pass it. TODO: give detailed logs here
                 self.database_log.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) already exists in cache, skipping")
@@ -417,6 +420,11 @@ class AttachedMessagesDatabaseImporter:
         self.conn.commit()
         self.database_log.info("Committing successful.")
 
+    def revert_changes(self) -> None:
+        self.database_log.info("Reverting changes not committed yet...")
+        self.conn.rollback()
+        self.database_log.info("Reverting successful.")
+
     def add_attached_message(self, message: wa_r.types.AttachedMessageData, commit_now = False) -> None:
         self.database_log.debug(f"Adding Message(line_index={message.line_index}) to database...")
 
@@ -426,7 +434,7 @@ class AttachedMessagesDatabaseImporter:
         except wa_r.exceptions.SenderAdditionException:
             self.database_log.error(f"Failed to insert Sender(sender_name=\"{message.sender}\") of Message(line_index={message.line_index}) into the database.")
             self.database_log.warning(f"Message(line_index={message.line_index}) and its attachments won't be added to database.")
-            return
+            raise
 
         self.database_log.debug(f"Sending insertion query for Message(line_index={message.line_index})...")
         self.cursor.execute("INSERT INTO MESSAGES VALUES (NULL, ?, ?, ?) RETURNING MESSAGE_ID", (message.message_date.timestamp(),
@@ -437,7 +445,7 @@ class AttachedMessagesDatabaseImporter:
         if not message_id:
             self.database_log.error(f"Failed to insert Message(line_index={message.line_index}) into the database and couldn't retrieve message ID from database.")
             self.database_log.warning(f"Attachment of Message(line_index={message.line_index}) won't be added to database.")
-            return
+            raise wa_r.exceptions.MessageInsertionError(f"Failed to insert Message(line_index={message.line_index})")
 
         message_id = message_id[0]
         self.database_log.debug(f"Insertion query sent for Message(line_index={message.line_index}, message_id={message_id}).")
@@ -450,14 +458,14 @@ class AttachedMessagesDatabaseImporter:
         
     def add_message_sender(self, sender_name: str, commit_now = False) -> None:
         # Must load cache before this stage
-        if sender_name not in self.senders_cache.message_senders_names:
+        if sender_name not in self.senders.message_senders_names:
             self.database_log.debug(f"Sending insertion query for Sender(sender_name=\"{sender_name}\")...")
             self.cursor.execute("INSERT INTO SENDERS VALUES (?, NULL) RETURNING SENDER_ID", (sender_name,)) 
 
             sender_id = self.cursor.fetchone() #Checkout
 
             if not sender_id: #If list is empty, something wrong happened. Abort the process
-                raise wa_r.exceptions.SenderAdditionError()
+                raise wa_r.exceptions.SenderAdditionError(f"Failed to add Sender(sender_name=\"{sender_name}\"})")
             
             self.database_log.debug(f"Insertion query for Sender(sender_name=\"{sender_name}\") sent!")
 
@@ -467,7 +475,7 @@ class AttachedMessagesDatabaseImporter:
             
             self.database_log.debug(f"Adding Sender(sender_name=\"{sender_name}\") to the cache...")
             sender_id = sender_id[0]
-            self.senders_cache.add_message_sender(sender_name, sender_id)
+            self.senders.add_message_sender(sender_name, sender_id)
             self.database_log.debug(f"Sender(sender_name=\"{sender_name}\") added to the cache.")
 
         else:

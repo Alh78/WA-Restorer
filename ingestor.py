@@ -108,10 +108,16 @@ if __name__ == "__main__":
 		for line_index, message_line in enumerate(wa_r.file.read_file_message_lines(os.path.abspath(app_args.backup_message_file)), 1):
 			message = process_message_line(message_line, line_index, app_args.backup_directory)
 			if message is None:
-				parser_log.debug(f"Passing message line {line_index}.")
+				main_log.debug(f"Passing message line {line_index}.")
 				continue
+            
+            try:
+			    messages_db.add_attached_message(message)
 
-			messages_db.add_attached_message(message)
+            except wa_r.exceptions.SenderAdditionError, wa_r.exceptions.MessageInsertionError:
+				main_log.debug(f"Passing message line {line_index}.") # Think about reverting.
+                continue
+
 			committing_counter += 1 
 
 			if committing_counter >= config.DATABASE_COMMIT_BUFFER_SIZE:

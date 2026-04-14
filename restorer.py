@@ -10,6 +10,7 @@ import typing
 import config
 import os
 
+
 def write_restored_metadata_to_file(file_name: str, device_brand: str = None, device_model: str = None):
 	writer_log.info(f"Writing restored metadata to File(file_name=\"{file_name}\")...")
 

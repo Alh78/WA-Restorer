@@ -10,7 +10,10 @@ class DatabaseError(Exception):
 class DatabaseCacheConflictException(DatabaseError):
     pass
 
-class SenderAdditionException(DatabaseError):
+class SenderAdditionError(DatabaseError):
+    pass
+
+class MessageInsertionError(DatabaseError):
     pass
 
 class MultipleOriginFilesException(DatabaseError):
