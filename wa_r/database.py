@@ -7,6 +7,7 @@ import logging
 import typing
 import os
 
+database_logger = logging.getLogger(__name__)
 
 class SendersCache:
     def __init__(self):
@@ -73,7 +74,6 @@ class SendersCache:
 
 
 class AttachedMessagesDatabaseProcessor:
-
     def __init__(self, file_name: str):
         self.__file_name = os.path.basename(file_name)
         self.__file_path = os.path.dirname(file_name)
@@ -82,14 +82,12 @@ class AttachedMessagesDatabaseProcessor:
 
         self.senders = SendersCache()
 
-        self.database_log = logging.getLogger("AttachedMessagesDatabaseProcessor") # We will add handlers in main flow.
+        #database_logger.warning("Before doing any operation on this database, please ensure you've copied initial database file to prevent potential data loss.")
 
-        #self.database_log.warning("Before doing any operation on this database, please ensure you've copied initial database file to prevent potential data loss.")
-
-        self.database_log.info(f"Reading database file...", extra = {"path": self.__full_file_path})
+        database_logger.info(f"Reading database file...", extra = {"path": self.__full_file_path})
         
         if not os.path.exists(self.__full_file_path):
-            self.database_log.critical("Specified database file doesn't exist!")
+            database_logger.critical("Specified database file doesn't exist!")
             raise FileNotFoundError(self.__full_file_path)
 
         self._media_hash_column_exists = False
@@ -99,9 +97,9 @@ class AttachedMessagesDatabaseProcessor:
 
         self.cursor.execute("PRAGMA foreign_keys = ON")
 
-        self.database_log.info("SQLite database initialization successful!")
+        database_logger.info("SQLite database initialization successful!")
 
-        self.database_log.info(f"Loading cache automatically...")
+        database_logger.info(f"Loading cache automatically...")
         self.load_cache()
     
     @property
@@ -121,56 +119,56 @@ class AttachedMessagesDatabaseProcessor:
         return self.__cursor
 
     def load_cache(self) -> None:
-        self.database_log.info("Loading senders cache from database on memory...")
-        self.database_log.debug("Sending SELECT query to database...")
+        database_logger.info("Loading senders cache from database on memory...")
+        database_logger.debug("Sending SELECT query to database...")
 
         self.cursor.execute("SELECT * FROM SENDERS")
         senders_information = self.cursor.fetchall()
 
-        self.database_log.debug("Fetched senders from DB!")
+        database_logger.debug("Fetched senders from DB!")
 
         for sender_name, sender_id in senders_information:
-            self.database_log.debug(f"Trying to add Sender(name=\"{sender_name}\", id={sender_id}) to the cache...")
+            database_logger.debug(f"Trying to add Sender(name=\"{sender_name}\", id={sender_id}) to the cache...")
             # We're putting try except stage here to be able to handle the situation more way better
             try:
                 self.senders.add_message_sender(sender_name, sender_id) #!
 
             except KeyError: # This sender is already placed in cache, so we can pass it. TODO: give detailed logs here
-                self.database_log.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) already exists in cache, skipping")
+                database_logger.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) already exists in cache, skipping")
 
             except ValueError: #This means there's a conflict between cache and database, so cache must be cleaned to prevent wrong write operations on DB.
-                self.database_log.warning(f"Conflict between database and cache has been detected on Sender(name=\"{sender_name}\", id={sender_id})")
-                self.database_log.info("Due to conflict between database and cache, resetting senders cache and reloading...")
+                database_logger.warning(f"Conflict between database and cache has been detected on Sender(name=\"{sender_name}\", id={sender_id})")
+                database_logger.info("Due to conflict between database and cache, resetting senders cache and reloading...")
 
                 self.senders.reset_cache()
                 self.load_cache()
 
             else:
-                self.database_log.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) has been succesfully added to cache!")
+                database_logger.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) has been succesfully added to cache!")
         
-        self.database_log.info("Cache load from database successfully!")
+        database_logger.info("Cache load from database successfully!")
 
     def commit_changes(self) -> None:
-        self.database_log.info("Committing changes not committed yet...")
+        database_logger.info("Committing changes not committed yet...")
 
         self.cursor.execute("VACUUM")
         self.conn.commit()
 
-        self.database_log.info("Committing successful.")
+        database_logger.info("Committing successful.")
 
     def revert_changes(self) -> None:
-        self.database_log.info("Reverting changes not committed yet...")
+        database_logger.info("Reverting changes not committed yet...")
         self.conn.rollback()
-        self.database_log.info("Reverting successful.")
+        database_logger.info("Reverting successful.")
 
     def filter_media_messages(self):
-        self.database_log.info("Filtering messages containing media...")
+        database_logger.info("Filtering messages containing media...")
         self.cursor.execute("DELETE FROM MEDIA_FILES WHERE FILE_TYPE NOT IN (?, ?)",
                             (wa_r.types.WPFileTypes.IMAGE_FILE_TYPE, wa_r.types.WPFileTypes.VIDEO_FILE_TYPE))
         self.cursor.execute("DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT DISTINCT MESSAGE_ID FROM MEDIA_FILES)")
 
     def filter_media_origin_messages(self): # Destructive. This method cannot be done without applying origination.
-        self.database_log.info("Filtering origin media messages...")
+        database_logger.info("Filtering origin media messages...")
         self.cursor.executescript("""DELETE FROM MEDIA_FILES
                                         WHERE rowid NOT IN (
                                             SELECT mf.rowid
@@ -194,8 +192,8 @@ class AttachedMessagesDatabaseProcessor:
                                         );""")
 
     def filter_media_messages_manually(self, included_files_list: typing.Iterable[str]): # Destructive, WIP
-        self.database_log.info("Filtering manually...")
-        self.database_log.debug("Filtering whitelist", extra = {"included_files": included_files_list})
+        database_logger.info("Filtering manually...")
+        database_logger.debug("Filtering whitelist", extra = {"included_files": included_files_list})
         self.cursor.executescript("""DROP TABLE IF EXISTS INCLUDED_FILES;
                                      CREATE TEMPORARY TABLE INCLUDED_FILES (FILE_NAME TEXT UNIQUE);""")
         self.cursor.executemany("INSERT INTO INCLUDED_FILES VALUES (?)", [(i,) for i in included_files_list])
@@ -204,11 +202,11 @@ class AttachedMessagesDatabaseProcessor:
         included_files_missing_in_db = [file_name[0] for file_name in self.cursor.fetchall()]
     
         if included_files_missing_in_db:
-            self.database_log.warning(f"{len(included_files_missing_in_db)} files in whitelist don't exist in database.", extra = {"missing_whitelist_files_preview": included_files_missing_in_db[:25]})
+            database_logger.warning(f"{len(included_files_missing_in_db)} files in whitelist don't exist in database.", extra = {"missing_whitelist_files_preview": included_files_missing_in_db[:25]})
 
             if len(included_files_missing_in_db) > 25:
-                self.database_log.warning("For seeing other whitelist files missing in database, set logging level to DEBUG.")
-                self.database_log.debug("Full list of missing files:", extra = {"missing_whitelist_files": included_files_missing_in_db})
+                database_logger.warning("For seeing other whitelist files missing in database, set logging level to DEBUG.")
+                database_logger.debug("Full list of missing files:", extra = {"missing_whitelist_files": included_files_missing_in_db})
 
 
         self.cursor.executescript("""DELETE FROM MEDIA_FILES WHERE FILE_NAME NOT IN (SELECT FILE_NAME FROM INCLUDED_FILES);
@@ -242,7 +240,7 @@ class AttachedMessagesDatabaseProcessor:
         return self.cursor.fetchone()[0]
 
     def get_all_message_count(self, unique_media_messages: bool = False) -> int:
-        self.database_log.info(f"Getting {'unique' if unique_media_messages else ''} media messages count...")
+        database_logger.info(f"Getting {'unique' if unique_media_messages else ''} media messages count...")
 
         if unique_media_messages:
             self.cursor.execute("SELECT COUNT(DISTINCT FILE_HASH) FROM MESSAGES m INNER JOIN MEDIA_FILES mf ON m.MESSAGE_ID = mf.MESSAGE_ID")
@@ -255,8 +253,8 @@ class AttachedMessagesDatabaseProcessor:
 
     def get_sender_message_by_attached_file_name(self, file_name: str) -> typing.Union[wa_r.types.AttachedMessageData,
                                                                                        typing.List[wa_r.types.AttachedMessageData]]:
-        self.database_log.debug(f"Getting messages attached with \"{file_name}\" file...")
-        self.database_log.debug("Sending SELECT query to database...")
+        database_logger.debug(f"Getting messages attached with \"{file_name}\" file...")
+        database_logger.debug("Sending SELECT query to database...")
         self.cursor.execute("""SELECT 
                                     s.SENDER_NAME,
                                     m.LINE_INDEX,
@@ -270,10 +268,10 @@ class AttachedMessagesDatabaseProcessor:
                                JOIN MEDIA_FILES mf ON m.MESSAGE_ID = mf.MESSAGE_ID
                                WHERE mf.FILE_NAME = ?""", (file_name,))
 
-        self.database_log.debug("Fetching all messages specified with file...")
+        database_logger.debug("Fetching all messages specified with file...")
         messages_attached_with_specified_file = self.cursor.fetchall() # Assuming this data is small enough.
 
-        self.database_log.debug("Parsing fetched datas from databases and converting to AttachedMessageData type...")
+        database_logger.debug("Parsing fetched datas from databases and converting to AttachedMessageData type...")
         specified_message_datas = [wa_r.parsing.package_message_data_raw(*message) for message in messages_attached_with_specified_file]
 
         return specified_message_datas if len(specified_message_datas) != 1 else specified_message_datas[0]
@@ -282,7 +280,7 @@ class AttachedMessagesDatabaseProcessor:
                                                       end_date: datetime.datetime,
                                                       sender_id: int) -> typing.Union[wa_r.types.AttachedMessageData,
                                                                                       typing.List[wa_r.types.AttachedMessageData]]:
-        self.database_log.debug("Sending SELECT query to database...")                                                                                      
+        database_logger.debug("Sending SELECT query to database...")                                                                                      
         self.cursor.execute("""SELECT 
                                     s.SENDER_NAME,
                                     m.LINE_INDEX,
@@ -296,10 +294,10 @@ class AttachedMessagesDatabaseProcessor:
                                JOIN MEDIA_FILES mf ON m.MESSAGE_ID = mf.MESSAGE_ID
                                WHERE s.SENDER_ID = ? AND m.MESSAGE_TIMESTAMP BETWEEN ? AND ?""", (sender_id, start_date.timestamp(), end_date.timestamp()))
 
-        self.database_log.debug("Fetching all messages in the specified time range...")
+        database_logger.debug("Fetching all messages in the specified time range...")
         messages_attached_in_specified_range = self.cursor.fetchall() # Assuming this data is small enough.
 
-        self.database_log.debug("Parsing fetched datas from databases and converting to AttachedMessageData type...")
+        database_logger.debug("Parsing fetched datas from databases and converting to AttachedMessageData type...")
         specified_message_datas = [wa_r.parsing.package_message_data_raw(*message) for message in messages_attached_in_specified_range]
 
         return specified_message_datas if len(specified_message_datas) != 1 else specified_message_datas[0]
@@ -320,18 +318,17 @@ class AttachedMessagesDatabaseProcessor:
 
 
     def close(self) -> None:
-        self.database_log.info("Resetting senders cache...")
+        database_logger.info("Resetting senders cache...")
         self.senders.reset_cache()
 
-        self.database_log.info("Auto-reverting applied and not committed changes...")
+        database_logger.info("Auto-reverting applied and not committed changes...")
         self.revert_changes()
 
-        self.database_log.info("Closing database connection...")
+        database_logger.info("Closing database connection...")
         self.conn.close()
 
 
 class AttachedMessagesDatabaseImporter:
-
     def __init__(self, file_name: str):
         self.__file_name = os.path.basename(file_name)
         self.__file_path = os.path.dirname(file_name)
@@ -340,9 +337,7 @@ class AttachedMessagesDatabaseImporter:
 
         self.senders = SendersCache()
 
-        self.database_log = logging.getLogger("AttachedMessagesDatabaseImporter") # We will add handlers in main flow.
-
-        self.database_log.info(f"Creating database file...", extra = {"path": self.__full_file_path})
+        database_logger.info(f"Creating database file...", extra = {"path": self.__full_file_path})
         
         if self.file_path:
             os.makedirs(self.file_path, exist_ok = True)
@@ -352,10 +347,10 @@ class AttachedMessagesDatabaseImporter:
 
         self.cursor.execute("PRAGMA foreign_keys = ON")
 
-        self.database_log.info(f"SQLite database initialization successful!")
+        database_logger.info(f"SQLite database initialization successful!")
     
         self.create_tables()
-        self.database_log.info("Table creation successful.")
+        database_logger.info("Table creation successful.")
     
     @property
     def file_name(self):
@@ -374,7 +369,7 @@ class AttachedMessagesDatabaseImporter:
         return self.__cursor
 
     def create_tables(self) -> None:
-        self.database_log.debug("Sending table creationg queries...")
+        database_logger.debug("Sending table creationg queries...")
         self.cursor.execute("CREATE TABLE IF NOT EXISTS SENDERS (SENDER_NAME TEXT UNIQUE, SENDER_ID INTEGER PRIMARY KEY AUTOINCREMENT)")
         self.cursor.execute("CREATE TABLE IF NOT EXISTS MESSAGES (MESSAGE_ID INTEGER PRIMARY KEY AUTOINCREMENT, MESSAGE_TIMESTAMP INTEGER, SENDER_ID INTEGER, LINE_INDEX INTEGER, FOREIGN KEY (SENDER_ID) REFERENCES SENDERS(SENDER_ID))")
         self.cursor.execute("CREATE TABLE IF NOT EXISTS MEDIA_FILES (FILE_NAME TEXT, FILE_HASH BLOB, FILE_TYPE TEXT, FILE_NAME_TIMESTAMP INTEGER, MESSAGE_ID INTEGER, FOREIGN KEY (MESSAGE_ID) REFERENCES MESSAGES(MESSAGE_ID))")
@@ -384,114 +379,114 @@ class AttachedMessagesDatabaseImporter:
         self.cursor.execute("CREATE INDEX IF NOT EXISTS IDX_FILE_TYPE ON MEDIA_FILES (FILE_TYPE)")
 
         self.conn.commit()
-        self.database_log.debug("New tables commited on database!")
+        database_logger.debug("New tables commited on database!")
 
     def load_cache(self) -> None:
-        self.database_log.info("Loading senders cache from database on memory...")
-        self.database_log.debug("Sending SELECT query to database...")
+        database_logger.info("Loading senders cache from database on memory...")
+        database_logger.debug("Sending SELECT query to database...")
 
         self.cursor.execute("SELECT * FROM SENDERS")
         senders_information = self.cursor.fetchall()
 
-        self.database_log.debug("Fetched senders from DB!")
+        database_logger.debug("Fetched senders from DB!")
 
         for sender_name, sender_id in senders_information:
-            self.database_log.debug(f"Trying to add Sender(name=\"{sender_name}\", id={sender_id}) to the cache...")
+            database_logger.debug(f"Trying to add Sender(name=\"{sender_name}\", id={sender_id}) to the cache...")
             # We're putting try except stage here to be able to handle the situation more way better
             try:
                 self.senders.add_message_sender(sender_name, sender_id) #!
 
             except KeyError: # This sender is already placed in cache, so we can pass it. TODO: give detailed logs here
-                self.database_log.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) already exists in cache, skipping")
+                database_logger.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) already exists in cache, skipping")
 
             except ValueError: #This means there's a conflict between cache and database, so cache must be cleaned to prevent wrong write operations on DB.
-                self.database_log.critical(f"Conflict between database and cache has been detected on Sender(name=\"{sender_name}\", id={sender_id}) ")
+                database_logger.critical(f"Conflict between database and cache has been detected on Sender(name=\"{sender_name}\", id={sender_id}) ")
                 raise wa_r.exceptions.DatabaseCacheConflictException()               # Code must be aborted
                 # This won't be wrapped.
 
             else:
-                self.database_log.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) has been succesfully added to cache!")
+                database_logger.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) has been succesfully added to cache!")
         
-        self.database_log.info("Cache load from database successfully!")
+        database_logger.info("Cache load from database successfully!")
 
 
     def commit_changes(self) -> None:
-        self.database_log.info("Committing changes not committed yet...")
+        database_logger.info("Committing changes not committed yet...")
         self.conn.commit()
-        self.database_log.info("Committing successful.")
+        database_logger.info("Committing successful.")
 
     def revert_changes(self) -> None:
-        self.database_log.info("Reverting changes not committed yet...")
+        database_logger.info("Reverting changes not committed yet...")
         self.conn.rollback()
-        self.database_log.info("Reverting successful.")
+        database_logger.info("Reverting successful.")
 
     def add_attached_message(self, message: wa_r.types.AttachedMessageData, commit_now = False) -> None:
-        self.database_log.debug(f"Adding Message(line_index={message.line_index}) to database...")
+        database_logger.debug(f"Adding Message(line_index={message.line_index}) to database...")
 
         try:
             self.add_message_sender(message.sender, commit_now) 
         
         except wa_r.exceptions.SenderAdditionException:
-            self.database_log.error(f"Failed to insert Sender(sender_name=\"{message.sender}\") of Message(line_index={message.line_index}) into the database.")
-            self.database_log.warning(f"Message(line_index={message.line_index}) and its attachments won't be added to database.")
+            database_logger.error(f"Failed to insert Sender(sender_name=\"{message.sender}\") of Message(line_index={message.line_index}) into the database.")
+            database_logger.warning(f"Message(line_index={message.line_index}) and its attachments won't be added to database.")
             raise
 
-        self.database_log.debug(f"Sending insertion query for Message(line_index={message.line_index})...")
+        database_logger.debug(f"Sending insertion query for Message(line_index={message.line_index})...")
         self.cursor.execute("INSERT INTO MESSAGES VALUES (NULL, ?, ?, ?) RETURNING MESSAGE_ID", (message.message_date.timestamp(),
                                                                                                  self.senders_cache.get_message_sender_id(message.sender),
                                                                                                  message.line_index))
         message_id = self.cursor.fetchone()
 
         if not message_id:
-            self.database_log.error(f"Failed to insert Message(line_index={message.line_index}) into the database and couldn't retrieve message ID from database.")
-            self.database_log.warning(f"Attachment of Message(line_index={message.line_index}) won't be added to database.")
+            database_logger.error(f"Failed to insert Message(line_index={message.line_index}) into the database and couldn't retrieve message ID from database.")
+            database_logger.warning(f"Attachment of Message(line_index={message.line_index}) won't be added to database.")
             raise wa_r.exceptions.MessageInsertionError(f"Failed to insert Message(line_index={message.line_index})")
 
         message_id = message_id[0]
-        self.database_log.debug(f"Insertion query sent for Message(line_index={message.line_index}, message_id={message_id}).")
+        database_logger.debug(f"Insertion query sent for Message(line_index={message.line_index}, message_id={message_id}).")
         
         if commit_now:
             self.conn.commit()
-            self.database_log.debug(f"Forced to commit now on add_attached_message for Message(line_index={message.line_index}) successfully.")
+            database_logger.debug(f"Forced to commit now on add_attached_message for Message(line_index={message.line_index}) successfully.")
         
         self.add_attached_file(message.file, message_id) 
         
     def add_message_sender(self, sender_name: str, commit_now = False) -> None:
         # Must load cache before this stage
         if sender_name not in self.senders.message_senders_names:
-            self.database_log.debug(f"Sending insertion query for Sender(sender_name=\"{sender_name}\")...")
+            database_logger.debug(f"Sending insertion query for Sender(sender_name=\"{sender_name}\")...")
             self.cursor.execute("INSERT INTO SENDERS VALUES (?, NULL) RETURNING SENDER_ID", (sender_name,)) 
 
             sender_id = self.cursor.fetchone() #Checkout
 
             if not sender_id: #If list is empty, something wrong happened. Abort the process
-                raise wa_r.exceptions.SenderAdditionError(f"Failed to add Sender(sender_name=\"{sender_name}\"})")
+                raise wa_r.exceptions.SenderAdditionError(f"Failed to add Sender(sender_name=\"{sender_name}\")")
             
-            self.database_log.debug(f"Insertion query for Sender(sender_name=\"{sender_name}\") sent!")
+            database_logger.debug(f"Insertion query for Sender(sender_name=\"{sender_name}\") sent!")
 
             if commit_now:
                 self.conn.commit()
-                self.database_log.debug(f"Forced to commit now on add_message_sender for Sender(sender_name=\"{sender_name}\") successfully.")
+                database_logger.debug(f"Forced to commit now on add_message_sender for Sender(sender_name=\"{sender_name}\") successfully.")
             
-            self.database_log.debug(f"Adding Sender(sender_name=\"{sender_name}\") to the cache...")
+            database_logger.debug(f"Adding Sender(sender_name=\"{sender_name}\") to the cache...")
             sender_id = sender_id[0]
             self.senders.add_message_sender(sender_name, sender_id)
-            self.database_log.debug(f"Sender(sender_name=\"{sender_name}\") added to the cache.")
+            database_logger.debug(f"Sender(sender_name=\"{sender_name}\") added to the cache.")
 
         else:
-            self.database_log.debug(f"Sender(sender_name=\"{sender_name}\") already exists in cache.")
+            database_logger.debug(f"Sender(sender_name=\"{sender_name}\") already exists in cache.")
 
 
     def add_attached_file(self, file_data: wa_r.types.WPFileData, message_id: int) -> None: # ! MESSAGE ID MUST NOT TO BE BROKEN
-        self.database_log.debug(f"Inserting new file attached to Message(id={message_id})...")
+        database_logger.debug(f"Inserting new file attached to Message(id={message_id})...")
         self.cursor.execute("INSERT INTO MEDIA_FILES VALUES (?, ?, ?, ?, ?)", (file_data.file_meta_data.file_name,
                                                                                file_data.file_hash,
                                                                                file_data.file_meta_data.file_type.value, # It is enum parameter
                                                                                None if file_data.file_meta_data.file_name_timestamp is None else int(file_data.file_meta_data.file_name_timestamp.timestamp()),
                                                                                message_id
                                                                                ))
-        self.database_log.debug(f"Insertion query of new file attached to Message(id={message_id}) sent!")
+        database_logger.debug(f"Insertion query of new file attached to Message(id={message_id}) sent!")
 
     def close(self) -> None:
-        self.database_log.info("Closing database connection...")
+        database_logger.info("Closing database connection...")
         self.conn.close()
