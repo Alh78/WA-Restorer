@@ -1,6 +1,7 @@
 import wa_r.types
 import logging
 import colorama
+import hashlib
 import datetime
 import logging
 import time
@@ -19,6 +20,8 @@ GENERIC_ATTACHED_MESSAGE_PATTERN = (
 NATIVE_ATTACHED_FILE_NAME_PATTERN = r"^(\w{3})-(\d{8})-WA\d{4}.*?"
 
 DEFAULT_IMAGE_HASH_SIZE = 8
+
+DEFAULT_FILE_HASHING_ALGORITHM = hashlib.sha256
 
 DEFAULT_IMAGE_HASHING_ALGORITHM = wa_r.types.ImageHashingAlgorithm.PHASH
 DEFAULT_VIDEO_HASHING_ALGORITHM = wa_r.types.VideoHashingAlgorithm.WHASH
