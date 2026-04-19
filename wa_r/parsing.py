@@ -2,7 +2,6 @@ import wa_r.exceptions
 import wa_r.constants
 import wa_r.types
 import datetime
-import config
 import os
 import re
 

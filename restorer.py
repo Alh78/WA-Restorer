@@ -4,7 +4,6 @@ import wa_r.database
 import wa_r.log
 import argparse
 import logging
-import config
 import os
 
 

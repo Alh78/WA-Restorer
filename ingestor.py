@@ -4,7 +4,6 @@ import wa_r.log
 import argparse
 import logging
 import typing
-import config
 import sys
 import os
 
