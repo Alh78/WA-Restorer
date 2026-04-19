@@ -88,9 +88,9 @@ class AttachedMessagesDatabaseProcessor:
         
         if not os.path.exists(self.__full_file_path):
             database_logger.critical("Specified database file doesn't exist!")
-            raise FileNotFoundError(self.__full_file_path)
+            raise FileNotFoundError(file_name)
 
-        self._media_hash_column_exists = False
+        self._perceptual_hash_column_exists = False
 
         self.__conn = sql.connect(self.__full_file_path)
         self.__cursor = self.__conn.cursor()
@@ -163,87 +163,87 @@ class AttachedMessagesDatabaseProcessor:
 
     def filter_media_messages(self):
         database_logger.info("Filtering messages containing media...")
-        self.cursor.execute("DELETE FROM MEDIA_FILES WHERE FILE_TYPE NOT IN (?, ?)",
+        self.cursor.execute("DELETE FROM ATTACHMENTS WHERE FILE_TYPE NOT IN (?, ?)",
                             (wa_r.types.WPFileTypes.IMAGE_FILE_TYPE, wa_r.types.WPFileTypes.VIDEO_FILE_TYPE))
-        self.cursor.execute("DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT DISTINCT MESSAGE_ID FROM MEDIA_FILES)")
+        self.cursor.execute("DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT DISTINCT MESSAGE_ID FROM ATTACHMENTS)")
 
-    def filter_media_origin_messages(self): # Destructive. This method cannot be done without applying origination.
-        database_logger.info("Filtering origin media messages...")
-        self.cursor.executescript("""DELETE FROM MEDIA_FILES
+    def filter_origin_messages(self): # Destructive. This method cannot be done without applying origination.
+        database_logger.info("Filtering origin messages...")
+        self.cursor.executescript("""DELETE FROM ATTACHMENTS
                                         WHERE rowid NOT IN (
-                                            SELECT mf.rowid
-                                            FROM MEDIA_FILES mf
-                                            JOIN MESSAGES m ON m.MESSAGE_ID = mf.MESSAGE_ID
-                                            WHERE (m.MESSAGE_TIMESTAMP, mf.FILE_NAME_TIMESTAMP, m.LINE_INDEX) = (
+                                            SELECT af.rowid
+                                            FROM ATTACHMENTS af
+                                            JOIN MESSAGES m ON m.MESSAGE_ID = af.MESSAGE_ID
+                                            WHERE (m.MESSAGE_TIMESTAMP, af.FILE_NAME_TIMESTAMP, m.LINE_INDEX) = (
                                                 SELECT 
                                                     MIN(m2.MESSAGE_TIMESTAMP),
-                                                    MIN(mf2.FILE_NAME_TIMESTAMP),
+                                                    MIN(af2.FILE_NAME_TIMESTAMP),
                                                     MIN(m2.LINE_INDEX)
-                                                FROM MEDIA_FILES mf2
-                                                JOIN MESSAGES m2 ON m2.MESSAGE_ID = mf2.MESSAGE_ID
-                                                WHERE mf2.FILE_HASH = mf.FILE_HASH
+                                                FROM ATTACHMENTS af2
+                                                JOIN MESSAGES m2 ON m2.MESSAGE_ID = af2.MESSAGE_ID
+                                                WHERE af2.FILE_HASH = af.FILE_HASH
                                             )
                                         );
 
                                      DELETE FROM MESSAGES
                                         WHERE MESSAGE_ID NOT IN (
                                             SELECT DISTINCT MESSAGE_ID
-                                            FROM MEDIA_FILES
+                                            FROM ATTACHMENTS
                                         );""")
 
-    def filter_media_messages_manually(self, included_files_list: typing.Iterable[str]): # Destructive, WIP
-        database_logger.info("Filtering manually...")
-        database_logger.debug("Filtering whitelist", extra = {"included_files": included_files_list})
-        self.cursor.executescript("""DROP TABLE IF EXISTS INCLUDED_FILES;
-                                     CREATE TEMPORARY TABLE INCLUDED_FILES (FILE_NAME TEXT UNIQUE);""")
-        self.cursor.executemany("INSERT INTO INCLUDED_FILES VALUES (?)", [(i,) for i in included_files_list])
+    def filter_messages_by_file_name(self, file_whitelist: typing.Iterable[str]): # Destructive, WIP
+        database_logger.info("Filtering by file names...")
+        database_logger.debug("Filtering whitelist", extra = {"whitelisted_files": file_whitelist})
+        self.cursor.executescript("""DROP TABLE IF EXISTS WHITELISTED_FILES;
+                                     CREATE TEMPORARY TABLE WHITELISTED_FILES (FILE_NAME TEXT UNIQUE);""")
+        self.cursor.executemany("INSERT INTO WHITELISTED_FILES VALUES (?)", [(i,) for i in file_whitelist])
 
-        self.cursor.execute("SELECT FILE_NAME FROM INCLUDED_FILES EXCEPT SELECT FILE_NAME FROM MEDIA_FILES")
-        included_files_missing_in_db = [file_name[0] for file_name in self.cursor.fetchall()]
+        self.cursor.execute("SELECT FILE_NAME FROM WHITELISTED_FILES EXCEPT SELECT FILE_NAME FROM ATTACHMENTS")
+        whitelisted_files_missing_in_db = [file_name[0] for file_name in self.cursor.fetchall()]
     
-        if included_files_missing_in_db:
-            database_logger.warning(f"{len(included_files_missing_in_db)} files in whitelist don't exist in database.", extra = {"missing_whitelist_files_preview": included_files_missing_in_db[:25]})
+        if whitelisted_files_missing_in_db:
+            database_logger.warning(f"{len(whitelisted_files_missing_in_db)} files in whitelist don't exist in database.", extra = {"missing_whitelisted_files_preview": whitelisted_files_missing_in_db[:25]})
 
-            if len(included_files_missing_in_db) > 25:
+            if len(whitelisted_files_missing_in_db) > 25:
                 database_logger.warning("For seeing other whitelist files missing in database, set logging level to DEBUG.")
-                database_logger.debug("Full list of missing files:", extra = {"missing_whitelist_files": included_files_missing_in_db})
+                database_logger.debug("Full list of missing files:", extra = {"missing_whitelisted_files": whitelisted_files_missing_in_db})
 
 
-        self.cursor.executescript("""DELETE FROM MEDIA_FILES WHERE FILE_NAME NOT IN (SELECT FILE_NAME FROM INCLUDED_FILES);
-                                     DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT MESSAGE_ID FROM MEDIA_FILES);
-                                     DROP TABLE INCLUDED_FILES;
+        self.cursor.executescript("""DELETE FROM ATTACHMENTS WHERE FILE_NAME NOT IN (SELECT FILE_NAME FROM WHITELISTED_FILES);
+                                     DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT MESSAGE_ID FROM ATTACHMENTS);
+                                     DROP TABLE WHITELISTED_FILES;
                                   """)
 
-    def _ensure_media_hash_column(self):
-        if self._media_hash_column_exists:
+    def _ensure_perceptual_hash_column(self):
+        if self._perceptual_hash_column_exists:
             return
 
-        self.cursor.execute("PRAGMA table_info(MEDIA_FILES)")
-        media_files_columns = {column[1] for column in self.cursor.fetchall()}
+        self.cursor.execute("PRAGMA table_info(ATTACHMENTS)")
+        attachments_columns = {column[1] for column in self.cursor.fetchall()}
 
-        if "MEDIA_HASH" not in media_files_columns:
-            self.cursor.execute("ALTER TABLE MEDIA_FILES ADD COLUMN MEDIA_HASH BLOB")
+        if "PERCEPTUAL_HASH" not in attachments_columns:
+            self.cursor.execute("ALTER TABLE ATTACHMENTS ADD COLUMN PERCEPTUAL_HASH BLOB")
 
-        self._media_hash_column_exists = True
+        self._perceptual_hash_column_exists = True
 
-    def add_attached_message_media_hash(self, message: wa_r.types.AttachedMessageData, media_hash: bytes):
-        self._ensure_media_hash_column()
-        self.cursor.execute("UPDATE MEDIA_FILES SET MEDIA_HASH = ? WHERE FILE_NAME = ?", (media_hash, message.file_data.file_name))
+    def add_attached_message_perceptual_hash(self, message: wa_r.types.AttachedMessageData, perceptual_hash: bytes):
+        self._ensure_perceptual_hash_column()
+        self.cursor.execute("UPDATE ATTACHMENTS SET PERCEPTUAL_HASH = ? WHERE FILE_NAME = ?", (perceptual_hash, message.file_data.file_name))
 
-    def get_senders_message_count(self, sender_id: int, unique_media_messages: bool = False) -> int:
-        if unique_media_messages:
-            self.cursor.execute("SELECT COUNT(DISTINCT FILE_HASH) FROM MESSAGES m INNER JOIN MEDIA_FILES mf ON m.MESSAGE_ID = mf.MESSAGE_ID WHERE SENDER_ID = ?", (sender_id,))
+    def get_sender_message_count(self, sender_id: int, unique_attachments_only: bool = False) -> int:
+        if unique_attachments_only:
+            self.cursor.execute("SELECT COUNT(DISTINCT FILE_HASH) FROM MESSAGES m INNER JOIN ATTACHMENTS af ON m.MESSAGE_ID = af.MESSAGE_ID WHERE SENDER_ID = ?", (sender_id,))
 
         else:
             self.cursor.execute("SELECT COUNT(*) FROM MESSAGES WHERE SENDER_ID = ?", (sender_id,))
 
         return self.cursor.fetchone()[0]
 
-    def get_all_message_count(self, unique_media_messages: bool = False) -> int:
-        database_logger.info(f"Getting {'unique' if unique_media_messages else ''} media messages count...")
+    def get_all_message_count(self, unique_attachments_only: bool = False) -> int:
+        database_logger.info(f"Getting {'unique' if unique_attachments_only else ''} media messages count...")
 
-        if unique_media_messages:
-            self.cursor.execute("SELECT COUNT(DISTINCT FILE_HASH) FROM MESSAGES m INNER JOIN MEDIA_FILES mf ON m.MESSAGE_ID = mf.MESSAGE_ID")
+        if unique_attachments_only:
+            self.cursor.execute("SELECT COUNT(DISTINCT FILE_HASH) FROM MESSAGES m INNER JOIN ATTACHMENTS af ON m.MESSAGE_ID = af.MESSAGE_ID")
 
         else:
             self.cursor.execute("SELECT COUNT(*) FROM MESSAGES")
@@ -251,7 +251,7 @@ class AttachedMessagesDatabaseProcessor:
         return self.cursor.fetchone()[0]
 
 
-    def get_sender_message_by_attached_file_name(self, file_name: str) -> typing.Union[wa_r.types.AttachedMessageData,
+    def get_messages_by_attached_file_name(self, file_name: str) -> typing.Union[wa_r.types.AttachedMessageData,
                                                                                        typing.List[wa_r.types.AttachedMessageData]]:
         database_logger.debug(f"Getting messages attached with \"{file_name}\" file...")
         database_logger.debug("Sending SELECT query to database...")
@@ -259,14 +259,14 @@ class AttachedMessagesDatabaseProcessor:
                                     s.SENDER_NAME,
                                     m.LINE_INDEX,
                                     m.MESSAGE_TIMESTAMP,
-                                    mf.FILE_NAME,
-                                    mf.FILE_TYPE,
-                                    mf.FILE_NAME_TIMESTAMP,
-                                    mf.FILE_HASH
+                                    af.FILE_NAME,
+                                    af.FILE_TYPE,
+                                    af.FILE_NAME_TIMESTAMP,
+                                    af.FILE_HASH
                                FROM MESSAGES m
                                JOIN SENDERS s ON s.SENDER_ID = m.SENDER_ID
-                               JOIN MEDIA_FILES mf ON m.MESSAGE_ID = mf.MESSAGE_ID
-                               WHERE mf.FILE_NAME = ?""", (file_name,))
+                               JOIN ATTACHMENTS af ON m.MESSAGE_ID = af.MESSAGE_ID
+                               WHERE af.FILE_NAME = ?""", (file_name,))
 
         database_logger.debug("Fetching all messages specified with file...")
         messages_attached_with_specified_file = self.cursor.fetchall() # Assuming this data is small enough.
@@ -276,22 +276,22 @@ class AttachedMessagesDatabaseProcessor:
 
         return specified_message_datas if len(specified_message_datas) != 1 else specified_message_datas[0]
 
-    def get_sender_media_messages_between_dates(self, start_date: datetime.datetime,
-                                                      end_date: datetime.datetime,
-                                                      sender_id: int) -> typing.Union[wa_r.types.AttachedMessageData,
-                                                                                      typing.List[wa_r.types.AttachedMessageData]]:
+    def get_sender_messages_between_dates(self, start_date: datetime.datetime,
+                                               end_date: datetime.datetime,
+                                               sender_id: int) -> typing.Union[wa_r.types.AttachedMessageData,
+                                                                               typing.List[wa_r.types.AttachedMessageData]]:
         database_logger.debug("Sending SELECT query to database...")                                                                                      
         self.cursor.execute("""SELECT 
                                     s.SENDER_NAME,
                                     m.LINE_INDEX,
                                     m.MESSAGE_TIMESTAMP,
-                                    mf.FILE_NAME,
-                                    mf.FILE_TYPE,
-                                    mf.FILE_NAME_TIMESTAMP,
-                                    mf.FILE_HASH
+                                    af.FILE_NAME,
+                                    af.FILE_TYPE,
+                                    af.FILE_NAME_TIMESTAMP,
+                                    af.FILE_HASH
                                FROM MESSAGES m
                                JOIN SENDERS s ON s.SENDER_ID = m.SENDER_ID
-                               JOIN MEDIA_FILES mf ON m.MESSAGE_ID = mf.MESSAGE_ID
+                               JOIN ATTACHMENTS af ON m.MESSAGE_ID = af.MESSAGE_ID
                                WHERE s.SENDER_ID = ? AND m.MESSAGE_TIMESTAMP BETWEEN ? AND ?""", (sender_id, start_date.timestamp(), end_date.timestamp()))
 
         database_logger.debug("Fetching all messages in the specified time range...")
@@ -303,15 +303,15 @@ class AttachedMessagesDatabaseProcessor:
         return specified_message_datas if len(specified_message_datas) != 1 else specified_message_datas[0]
 
 
-    def check_media_file_exists_by_file_name(self, file_name: str) -> bool: # WIP
-        self.cursor.execute("SELECT 1 FROM MEDIA_FILES WHERE FILE_NAME = ? LIMIT 1", (file_name,))
+    def check_attachment_exists_by_file_name(self, file_name: str) -> bool: # WIP
+        self.cursor.execute("SELECT 1 FROM ATTACHMENTS WHERE FILE_NAME = ? LIMIT 1", (file_name,))
         return bool(self.cursor.fetchone())
 
-    def check_media_files_exists_by_file_name(self, file_names_list: typing.Iterable[str]) -> typing.Dict[str, bool]: #WIP
-        self.cursor.executescript("""DROP TABLE IF EXISTS EXISTING_CHECK_FILES;
-                                     CREATE TEMPORARY TABLE EXISTING_CHECK_FILES (FILE_NAME TEXT UNIQUE);""")
-        self.cursor.executemany("INSERT INTO EXISTING_CHECK_FILES VALUES (?)", [(i,) for i in file_names_list])
-        self.cursor.execute("SELECT FILE_NAME, EXISTS(SELECT 1 FROM MEDIA_FILES mf WHERE ecf.FILE_NAME = mf.FILE_NAME) FROM EXISTING_CHECK_FILES ecf")
+    def check_attachments_exists_by_file_name(self, file_names_list: typing.Iterable[str]) -> typing.Dict[str, bool]: #WIP
+        self.cursor.executescript("""DROP TABLE IF EXISTS FILES_TO_SEARCH;
+                                     CREATE TEMPORARY TABLE FILES_TO_SEARCH (FILE_NAME TEXT UNIQUE);""")
+        self.cursor.executemany("INSERT INTO FILES_TO_SEARCH VALUES (?)", [(i,) for i in file_names_list])
+        self.cursor.execute("SELECT FILE_NAME, EXISTS(SELECT 1 FROM ATTACHMENTS af WHERE ecf.FILE_NAME = af.FILE_NAME) FROM FILES_TO_SEARCH ecf")
         
         return {file_name: bool(file_exists) for file_name, file_exists in self.cursor.fetchall()}
 
@@ -369,14 +369,14 @@ class AttachedMessagesDatabaseImporter:
         return self.__cursor
 
     def create_tables(self) -> None:
-        database_logger.debug("Sending table creationg queries...")
+        database_logger.debug("Sending table creation queries...")
         self.cursor.execute("CREATE TABLE IF NOT EXISTS SENDERS (SENDER_NAME TEXT UNIQUE, SENDER_ID INTEGER PRIMARY KEY AUTOINCREMENT)")
         self.cursor.execute("CREATE TABLE IF NOT EXISTS MESSAGES (MESSAGE_ID INTEGER PRIMARY KEY AUTOINCREMENT, MESSAGE_TIMESTAMP INTEGER, SENDER_ID INTEGER, LINE_INDEX INTEGER, FOREIGN KEY (SENDER_ID) REFERENCES SENDERS(SENDER_ID))")
-        self.cursor.execute("CREATE TABLE IF NOT EXISTS MEDIA_FILES (FILE_NAME TEXT, FILE_HASH BLOB, FILE_TYPE TEXT, FILE_NAME_TIMESTAMP INTEGER, MESSAGE_ID INTEGER, FOREIGN KEY (MESSAGE_ID) REFERENCES MESSAGES(MESSAGE_ID))")
+        self.cursor.execute("CREATE TABLE IF NOT EXISTS ATTACHMENTS (FILE_NAME TEXT, FILE_HASH BLOB, FILE_TYPE TEXT, FILE_NAME_TIMESTAMP INTEGER, MESSAGE_ID INTEGER, FOREIGN KEY (MESSAGE_ID) REFERENCES MESSAGES(MESSAGE_ID))")
 
         self.cursor.execute("CREATE INDEX IF NOT EXISTS IDX_SENDER_ID ON MESSAGES (SENDER_ID)")
-        self.cursor.execute("CREATE INDEX IF NOT EXISTS IDX_FILE_HASH ON MEDIA_FILES (FILE_HASH)")
-        self.cursor.execute("CREATE INDEX IF NOT EXISTS IDX_FILE_TYPE ON MEDIA_FILES (FILE_TYPE)")
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS IDX_FILE_HASH ON ATTACHMENTS (FILE_HASH)")
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS IDX_FILE_TYPE ON ATTACHMENTS (FILE_TYPE)")
 
         self.conn.commit()
         database_logger.debug("New tables commited on database!")
@@ -420,7 +420,7 @@ class AttachedMessagesDatabaseImporter:
         self.conn.rollback()
         database_logger.info("Reverting successful.")
 
-    def add_attached_message(self, message: wa_r.types.AttachedMessageData, commit_now = False) -> None:
+    def add_attached_message(self, message: wa_r.types.AttachedMessageData, commit_now: bool = False) -> None:
         database_logger.debug(f"Adding Message(line_index={message.line_index}) to database...")
 
         try:
@@ -451,7 +451,7 @@ class AttachedMessagesDatabaseImporter:
         
         self.add_attached_file(message.file, message_id) 
         
-    def add_message_sender(self, sender_name: str, commit_now = False) -> None:
+    def add_message_sender(self, sender_name: str, commit_now: bool = False) -> None:
         # Must load cache before this stage
         if sender_name not in self.senders.message_senders_names:
             database_logger.debug(f"Sending insertion query for Sender(sender_name=\"{sender_name}\")...")
@@ -479,7 +479,7 @@ class AttachedMessagesDatabaseImporter:
 
     def add_attached_file(self, file_data: wa_r.types.WPFileData, message_id: int) -> None: # ! MESSAGE ID MUST NOT TO BE BROKEN
         database_logger.debug(f"Inserting new file attached to Message(id={message_id})...")
-        self.cursor.execute("INSERT INTO MEDIA_FILES VALUES (?, ?, ?, ?, ?)", (file_data.file_meta_data.file_name,
+        self.cursor.execute("INSERT INTO ATTACHMENTS VALUES (?, ?, ?, ?, ?)", (file_data.file_meta_data.file_name,
                                                                                file_data.file_hash,
                                                                                file_data.file_meta_data.file_type.value, # It is enum parameter
                                                                                None if file_data.file_meta_data.file_name_timestamp is None else int(file_data.file_meta_data.file_name_timestamp.timestamp()),

@@ -16,7 +16,7 @@ def write_restored_metadata_to_file(
     writer_logger.debug(
         f'Getting origin message of File(file_name="{file_name}") from reference database...'
     )
-    message_data = reference_database.get_sender_message_by_attached_file_name(file_name)
+    message_data = reference_database.get_messages_by_attached_file_name(file_name)
 
     if isinstance(message_data, list) and message_data:
         writer_logger.critical(
