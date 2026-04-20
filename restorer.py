@@ -1,4 +1,4 @@
-import wa_r.core.restorer
+import wa_r.core.restore
 import wa_r.exceptions
 import wa_r.database
 import wa_r.log
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     main_log.info("Starting to restoration...")
 
     try:
-        wa_r.core.restorer.initiate_restoring_process(reference_db, app_args.media_directory, app_args.destination_directory)
+        wa_r.core.restore.initiate_restoring_process(reference_db, app_args.media_directory, app_args.destination_directory)
 
     except wa_r.exceptions.MultipleOriginFilesException:
         main_log.warning(

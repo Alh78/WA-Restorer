@@ -1,4 +1,4 @@
-import wa_r.core.ingestor
+import wa_r.core.ingest
 import wa_r.database
 import wa_r.log
 import argparse
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     main_logger.info("Starting to read line by line and parsing...")
 
     try:
-        wa_r.core.ingestor.initiate_importing_process(app_args.backup_directory, app_args.backup_message_file, messages_db)
+        wa_r.core.ingest.initiate_importing_process(app_args.backup_directory, app_args.backup_message_file, messages_db)
 
     except:
         main_logger.error("An exception occured during the process!", exc_info = True)
