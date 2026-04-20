@@ -1,6 +1,6 @@
 import wa_r.exceptions
 import sqlite3 as sql
-import wa_r.parsing
+import wa_r.factory
 import wa_r.types
 import datetime
 import logging
@@ -272,7 +272,7 @@ class AttachedMessagesDatabaseProcessor:
         messages_attached_with_specified_file = self.cursor.fetchall() # Assuming this data is small enough.
 
         database_logger.debug("Parsing fetched datas from databases and converting to AttachedMessageData type...")
-        specified_message_datas = [wa_r.parsing.package_message_data_raw(*message) for message in messages_attached_with_specified_file]
+        specified_message_datas = [wa_r.factory.package_message_data_raw(*message) for message in messages_attached_with_specified_file]
 
         return specified_message_datas if len(specified_message_datas) != 1 else specified_message_datas[0]
 
@@ -298,7 +298,7 @@ class AttachedMessagesDatabaseProcessor:
         messages_attached_in_specified_range = self.cursor.fetchall() # Assuming this data is small enough.
 
         database_logger.debug("Parsing fetched datas from databases and converting to AttachedMessageData type...")
-        specified_message_datas = [wa_r.parsing.package_message_data_raw(*message) for message in messages_attached_in_specified_range]
+        specified_message_datas = [wa_r.factory.package_message_data_raw(*message) for message in messages_attached_in_specified_range]
 
         return specified_message_datas if len(specified_message_datas) != 1 else specified_message_datas[0]
 

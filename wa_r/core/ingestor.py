@@ -1,4 +1,5 @@
 import wa_r.parsing
+import wa_r.factory
 import wa_r.exceptions
 import wa_r.types
 import wa_r.database
@@ -37,10 +38,10 @@ def process_message_line(message_line: str, line_index: int, directory: str = ""
         return
 
     parser_logger.debug("Packaging file data...")
-    file_data = wa_r.parsing.package_file_data(file_meta_data, file_hash)
+    file_data = wa_r.factory.package_file_data(file_meta_data, file_hash)
 
     parser_logger.debug("Packaging message data...")
-    message_data = wa_r.parsing.package_message_data(raw_message_data, file_data)
+    message_data = wa_r.factory.package_message_data(raw_message_data, file_data)
 
     return message_data
 

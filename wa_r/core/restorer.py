@@ -1,5 +1,5 @@
 import wa_r.database
-import wa_r.parsing
+import wa_r.factory
 import wa_r.file
 import wa_r.exceptions
 import logging
@@ -38,7 +38,7 @@ def write_restored_metadata_to_file(
     writer_logger.debug(
         "Generating WPMediaMetaData instance using fetched origin message data..."
     )
-    exif_data = wa_r.parsing.generate_media_meta_data(
+    exif_data = wa_r.factory.generate_media_meta_data(
         message_data, device_brand, device_model
     )
 
