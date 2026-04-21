@@ -80,7 +80,7 @@ class AttachedMessagesDatabaseProcessor:
 
         self.__full_file_path = os.path.abspath(file_name)
 
-        self.senders = SendersCache()
+        self.senders_cache = SendersCache()
 
         #database_logger.warning("Before doing any operation on this database, please ensure you've copied initial database file to prevent potential data loss.")
 
@@ -131,7 +131,7 @@ class AttachedMessagesDatabaseProcessor:
             database_logger.debug(f"Trying to add Sender(name=\"{sender_name}\", id={sender_id}) to the cache...")
             # We're putting try except stage here to be able to handle the situation more way better
             try:
-                self.senders.add_message_sender(sender_name, sender_id) #!
+                self.senders_cache.add_message_sender(sender_name, sender_id) #!
 
             except KeyError: # This sender is already placed in cache, so we can pass it. TODO: give detailed logs here
                 database_logger.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) already exists in cache, skipping")
@@ -140,7 +140,7 @@ class AttachedMessagesDatabaseProcessor:
                 database_logger.warning(f"Conflict between database and cache has been detected on Sender(name=\"{sender_name}\", id={sender_id})")
                 database_logger.info("Due to conflict between database and cache, resetting senders cache and reloading...")
 
-                self.senders.reset_cache()
+                self.senders_cache.reset_cache()
                 self.load_cache()
 
             else:
@@ -319,7 +319,7 @@ class AttachedMessagesDatabaseProcessor:
 
     def close(self) -> None:
         database_logger.info("Resetting senders cache...")
-        self.senders.reset_cache()
+        self.senders_cache.reset_cache()
 
         database_logger.info("Auto-reverting applied and not committed changes...")
         self.revert_changes()
@@ -335,7 +335,7 @@ class AttachedMessagesDatabaseImporter:
 
         self.__full_file_path = os.path.abspath(file_name)
 
-        self.senders = SendersCache()
+        self.senders_cache = SendersCache()
 
         database_logger.info(f"Creating database file...", extra = {"path": self.__full_file_path})
         
@@ -381,7 +381,7 @@ class AttachedMessagesDatabaseImporter:
         self.conn.commit()
         database_logger.debug("New tables commited on database!")
 
-    def load_cache(self) -> None:
+    def refresh_and_validate_cache(self) -> None:
         database_logger.info("Loading senders cache from database on memory...")
         database_logger.debug("Sending SELECT query to database...")
 
@@ -394,7 +394,7 @@ class AttachedMessagesDatabaseImporter:
             database_logger.debug(f"Trying to add Sender(name=\"{sender_name}\", id={sender_id}) to the cache...")
             # We're putting try except stage here to be able to handle the situation more way better
             try:
-                self.senders.add_message_sender(sender_name, sender_id) #!
+                self.senders_cache.add_message_sender(sender_name, sender_id) #!
 
             except KeyError: # This sender is already placed in cache, so we can pass it. TODO: give detailed logs here
                 database_logger.debug(f"Sender(name=\"{sender_name}\", id={sender_id}) already exists in cache, skipping")
@@ -409,8 +409,11 @@ class AttachedMessagesDatabaseImporter:
         
         database_logger.info("Cache load from database successfully!")
 
+    def commit_changes(self, validate_cache: bool = True) -> None:
+        if validate_cache:
+            database_logger.info("Checking and reloading the cache...")
+            self.refresh_and_validate_cache()
 
-    def commit_changes(self) -> None:
         database_logger.info("Committing changes not committed yet...")
         self.conn.commit()
         database_logger.info("Committing successful.")
@@ -453,7 +456,7 @@ class AttachedMessagesDatabaseImporter:
         
     def add_message_sender(self, sender_name: str, commit_now: bool = False) -> None:
         # Must load cache before this stage
-        if sender_name not in self.senders.message_senders_names:
+        if sender_name not in self.senders_cache.message_senders_names:
             database_logger.debug(f"Sending insertion query for Sender(sender_name=\"{sender_name}\")...")
             self.cursor.execute("INSERT INTO SENDERS VALUES (?, NULL) RETURNING SENDER_ID", (sender_name,)) 
 
@@ -470,7 +473,7 @@ class AttachedMessagesDatabaseImporter:
             
             database_logger.debug(f"Adding Sender(sender_name=\"{sender_name}\") to the cache...")
             sender_id = sender_id[0]
-            self.senders.add_message_sender(sender_name, sender_id)
+            self.senders_cache.add_message_sender(sender_name, sender_id)
             database_logger.debug(f"Sender(sender_name=\"{sender_name}\") added to the cache.")
 
         else:
