@@ -8,6 +8,7 @@ import wa_r.hashing
 import wa_r.file
 import typing
 import logging
+import os
 
 parser_logger = logging.getLogger(__name__)
 

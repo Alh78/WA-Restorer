@@ -44,13 +44,13 @@ class SendersCache:
     def get_message_sender_id(self, sender_name: str) -> int:
         return self.__message_senders_dict[sender_name]
 
-    def add_message_sender(self, sender_name: str, sender_id: int):        
-        if sender_id in self.message_senders_ids:
-            raise ValueError("Specified Sender ID already has been added to cache.")
-        
+    def add_message_sender(self, sender_name: str, sender_id: int):         
         if sender_name in self.message_senders_names:
             raise KeyError("Specified Sender name already has been added to cache.")
 
+        if sender_id in self.message_senders_ids:
+            raise ValueError("Specified Sender ID already has been added to cache.")
+        
         self.__message_senders_dict[sender_name] = sender_id
         self.__message_senders_dict_reversed[sender_id] = sender_name
 
