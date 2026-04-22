@@ -47,7 +47,7 @@ def generate_media_meta_data(attached_message_data: wa_r.types.AttachedMessageDa
         timestamp_to_add = attached_message_data.file.file_meta_data.file_name_timestamp
         
 
-    return wa_r.types.WPMediaMetaData(owner = owner,
+    return wa_r.types.WPMediaMetaData(owner = attached_message_data.sender,
                                       device_brand = device_brand,
                                       device_model = device_model,
                                       timestamp = timestamp_to_add)

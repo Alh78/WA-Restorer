@@ -44,7 +44,7 @@ def prepare_ingestor_loggers(save_logs: bool = False):
     main_logger.setLevel(logging.INFO)
     main_logger.addHandler(basic_console_handler)
 
-    ingestor_parser_logger = logging.getLogger("wa_r.core.ingestor")
+    ingestor_parser_logger = logging.getLogger("wa_r.core.ingest")
     database_logger = logging.getLogger("wa_r.database")
 
     ingestor_parser_logger.setLevel(logging.WARNING)
@@ -66,7 +66,7 @@ def prepare_restorer_loggers(save_logs: bool = False):
     main_logger.setLevel(logging.INFO)
     main_logger.addHandler(basic_console_handler)
 
-    restorer_writer_logger = logging.getLogger("wa_r.core.restorer")
+    restorer_writer_logger = logging.getLogger("wa_r.core.restore")
     database_logger = logging.getLogger("wa_r.database")
 
     restorer_writer_logger.setLevel(logging.INFO)
