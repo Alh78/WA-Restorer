@@ -429,7 +429,7 @@ class AttachedMessagesDatabaseImporter:
         try:
             self.add_message_sender(message.sender, commit_now) 
         
-        except wa_r.exceptions.SenderAdditionException:
+        except wa_r.exceptions.SenderAdditionError:
             database_logger.error(f"Failed to insert Sender(sender_name=\"{message.sender}\") of Message(line_index={message.line_index}) into the database.")
             database_logger.warning(f"Message(line_index={message.line_index}) and its attachments won't be added to database.")
             raise

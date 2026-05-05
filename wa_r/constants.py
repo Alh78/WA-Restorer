@@ -28,6 +28,8 @@ DEFAULT_VIDEO_HASHING_ALGORITHM = wa_r.types.VideoHashingAlgorithm.WHASH
 
 DEFAULT_METADATA_DATE_PRIORITY = wa_r.types.MetadataDatePriority.EARLIEST
 
+DEFAULT_INGESTOR_LANGUAGE_PREFERENCE = wa_r.types.BackupMessagesLangDetectionPreferences.AUTO_FAST
+
 CONSOLE_LOG_FORMAT = "{}%(name)-18s: {}%(message)s"
 CONSOLE_LOG_COLOURS = colorama.Fore
 CONSOLE_LOG_LEVEL_COLOURS = {

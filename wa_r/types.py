@@ -113,3 +113,17 @@ class ImageHashingAlgorithm(enum.Enum):
 class VideoHashingAlgorithm(enum.Enum):
     WHASH = "whash"
 
+
+class BackupMessagesLangDetectionPreferences(enum.Enum):
+    AUTO_FAST = "auto-fast"
+    AUTO_ALL = "auto-all"
+
+@dataclasses.dataclass(slots = True)
+class BackupMessagesLanguageFormat:
+    message_line_regex_format: str
+    date_regex_format: str
+    date_dt_format: str
+
+
+class BackupMessagesLanguages(enum.Enum):
+    TR_TR = "tr_tr"

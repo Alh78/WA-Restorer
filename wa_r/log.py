@@ -47,7 +47,7 @@ def prepare_ingestor_loggers(save_logs: bool = False):
     ingestor_parser_logger = logging.getLogger("wa_r.core.ingest")
     database_logger = logging.getLogger("wa_r.database")
 
-    ingestor_parser_logger.setLevel(logging.WARNING)
+    ingestor_parser_logger.setLevel(logging.INFO)
     ingestor_parser_logger.addHandler(basic_console_handler)
 
     database_logger.setLevel(logging.INFO)
