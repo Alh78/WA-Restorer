@@ -23,6 +23,7 @@ if __name__ == "__main__":
                                           add_help = False)
     main_parser.add_argument("backup_directory")
     main_parser.add_argument("backup_message_file")
+    main_parser.add_argument("--commit-buffer-size", type = int, default = wa_r.constants.DEFAULT_DATABASE_COMMIT_BUFFER_SIZE)
     main_parser.add_argument("--language", type = language_preference_type, default = wa_r.constants.DEFAULT_INGESTOR_LANGUAGE_PREFERENCE)
 
     app_args = main_parser.parse_args()
@@ -54,7 +55,7 @@ if __name__ == "__main__":
         main_logger.critical("Specified backup messages file path doesn't refer to a proper file.")
         raise SystemExit()
 
-    ingestor_kwargs = {}
+    ingestor_kwargs = {"commit_buffer_size": app_args.commit_buffer_size}
 
     if app_args.language in wa_r.types.BackupMessagesLangDetectionPreferences:
         ingestor_kwargs["language_detection_preference"] = app_args.language

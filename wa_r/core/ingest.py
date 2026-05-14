@@ -71,7 +71,7 @@ def detect_backup_language(language_detection_preference: wa_r.types.BackupMessa
         return wa_r.parsing.engine.determine_backup_language(backup_messages_lines, deep_search)
 
 
-def initiate_importing_process(backup_dir: str, backup_message_file_path: str, messages_database: wa_r.database.AttachedMessagesDatabaseImporter, language_detection_preference: wa_r.types.BackupMessagesLangDetectionPreferences = None, language: wa_r.types.BackupMessagesLanguages = None):
+def initiate_importing_process(backup_dir: str, backup_message_file_path: str, messages_database: wa_r.database.AttachedMessagesDatabaseImporter, commit_buffer_size: int = wa_r.constants.DEFAULT_DATABASE_COMMIT_BUFFER_SIZE, language_detection_preference: wa_r.types.BackupMessagesLangDetectionPreferences = None, language: wa_r.types.BackupMessagesLanguages = None):
     if language_detection_preference and language:
         raise ValueError("language_detection_preference and language cannot be used together.")
 
@@ -108,6 +108,6 @@ def initiate_importing_process(backup_dir: str, backup_message_file_path: str, m
 
         committing_counter += 1
 
-        if committing_counter >= wa_r.constants.DATABASE_COMMIT_BUFFER_SIZE:
+        if committing_counter >= commit_buffer_size:
             messages_database.commit_changes()
             committing_counter = 0

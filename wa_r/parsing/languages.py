@@ -15,6 +15,7 @@ class CompiledPatternsMap(dict[wa_r.types.BackupMessagesLanguages, re.Pattern]):
 
         return compiled_pattern
 
+
 BACKUP_MESSAGES_LANGUAGES_FORMATS: typing.Dict[wa_r.types.BackupMessagesLanguages, wa_r.types.BackupMessagesLanguageFormat] = {wa_r.types.BackupMessagesLanguages.TR_TR: wa_r.types.BackupMessagesLanguageFormat(
     r"^(\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2})\s-\s([^:]+):\s(.*?)\s\(dosya ekli\)",
     r"^(\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2})",

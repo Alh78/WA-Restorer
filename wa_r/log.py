@@ -4,10 +4,34 @@ import colorama
 
 colorama.init(True)
 
+CONSOLE_LOG_FORMAT = "{}%(name)-18s: {}%(message)s"
+CONSOLE_LOG_COLOURS = colorama.Fore
+CONSOLE_LOG_LEVEL_COLOURS = {
+    logging.DEBUG: CONSOLE_LOG_COLOURS.RESET,
+    logging.INFO: CONSOLE_LOG_COLOURS.RESET,
+    logging.WARNING: CONSOLE_LOG_COLOURS.YELLOW,
+    logging.ERROR: CONSOLE_LOG_COLOURS.LIGHTRED_EX,
+    logging.CRITICAL: CONSOLE_LOG_COLOURS.RED,
+}
+
+CONSOLE_LOG_LEVEL_MESSAGES_COLOURS = {
+    logging.DEBUG: CONSOLE_LOG_COLOURS.RESET,
+    logging.INFO: CONSOLE_LOG_COLOURS.RESET,
+    logging.WARNING: CONSOLE_LOG_COLOURS.RESET,
+    logging.ERROR: CONSOLE_LOG_COLOURS.LIGHTRED_EX,
+    logging.CRITICAL: CONSOLE_LOG_COLOURS.LIGHTRED_EX,
+}
+
+FILE_LOG_FORMAT = "%(name)s - [%(asctime)s] - %(levelname)s: %(message)s"
+LOG_DATE_FORMAT = "%d/%m/%Y %H:%M:%S"
+
+INGESTOR_LOG_FILE_NAME = f"ingestor_{wa_r.constants.CURRENT_INIT_TIME:%H-%M-%S_%m-%d-%Y}.log"
+RESTORER_LOG_FILE_NAME = f"restorer_{wa_r.constants.CURRENT_INIT_TIME:%H-%M-%S_%m-%d-%Y}.log"
+
 
 class BasicConsoleFormatter(logging.Formatter):
-    console_log_format = wa_r.constants.CONSOLE_LOG_FORMAT
-    console_log_level_colours = wa_r.constants.CONSOLE_LOG_LEVEL_COLOURS
+    console_log_format = CONSOLE_LOG_FORMAT
+    console_log_level_colours = CONSOLE_LOG_LEVEL_COLOURS
 
     def __init__(self):
         super().__init__(BasicConsoleFormatter.console_log_format)
@@ -15,19 +39,19 @@ class BasicConsoleFormatter(logging.Formatter):
     def format(self, record):
         return logging.Formatter(
             self._fmt.format(
-                wa_r.constants.CONSOLE_LOG_COLOURS.LIGHTBLACK_EX,
+                CONSOLE_LOG_COLOURS.LIGHTBLACK_EX,
                 self.console_log_level_colours[record.levelno],
-                wa_r.constants.CONSOLE_LOG_LEVEL_MESSAGES_COLOURS[record.levelno],
+                CONSOLE_LOG_LEVEL_MESSAGES_COLOURS[record.levelno],
             )
         ).format(record)
 
 
 class BasicFileFormatter(logging.Formatter):
-    file_log_format = wa_r.constants.FILE_LOG_FORMAT
+    file_log_format = FILE_LOG_FORMAT
 
     def __init__(self):
         super().__init__(
-            BasicFileFormatter.file_log_format, wa_r.constants.LOG_DATE_FORMAT
+            BasicFileFormatter.file_log_format, LOG_DATE_FORMAT
         )
 
 
@@ -54,7 +78,7 @@ def prepare_ingestor_loggers(save_logs: bool = False):
     database_logger.addHandler(basic_console_handler)
 
     if save_logs:
-        file_handler = logging.FileHandler(wa_r.constants.INGESTOR_LOG_FILE_NAME, "a")
+        file_handler = logging.FileHandler(INGESTOR_LOG_FILE_NAME, "a")
         file_handler.setFormatter(BasicFileFormatter())
 
         main_logger.addHandler(file_handler)
@@ -76,7 +100,7 @@ def prepare_restorer_loggers(save_logs: bool = False):
     database_logger.addHandler(basic_console_handler)
 
     if save_logs:
-        file_handler = logging.FileHandler(wa_r.constants.RESTORER_LOG_FILE_NAME, "a")
+        file_handler = logging.FileHandler(RESTORER_LOG_FILE_NAME, "a")
         file_handler.setFormatter(BasicFileFormatter())
 
         main_logger.addHandler(file_handler)

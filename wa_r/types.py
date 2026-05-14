@@ -103,6 +103,8 @@ class MetadataDatePriority(enum.Enum):
     FILE_NAME = "file-name"
     EARLIEST = "earliest"
 
+class FileHashingAlgorithm(enum.Enum):
+    SHA256 = "sha256"
 
 class ImageHashingAlgorithm(enum.Enum):
     PHASH = "phash"
