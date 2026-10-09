@@ -27,6 +27,7 @@ LOG_DATE_FORMAT = "%d/%m/%Y %H:%M:%S"
 
 INGESTOR_LOG_FILE_NAME = f"ingestor_{wa_r.constants.CURRENT_INIT_TIME:%H-%M-%S_%m-%d-%Y}.log"
 RESTORER_LOG_FILE_NAME = f"restorer_{wa_r.constants.CURRENT_INIT_TIME:%H-%M-%S_%m-%d-%Y}.log"
+FILTERER_LOG_FILE_NAME = f"filterer_{wa_r.constants.CURRENT_INIT_TIME:%H-%M-%S_%m-%d-%Y}.log"
 
 
 class BasicConsoleFormatter(logging.Formatter):
@@ -62,6 +63,28 @@ sameline_console_handler = logging.StreamHandler()
 sameline_console_handler.terminator = "\r"
 sameline_console_handler.setFormatter(BasicConsoleFormatter())
 
+
+def prepare_filterer_loggers(save_logs: bool = False):
+    main_logger = logging.getLogger("filterer")
+    main_logger.setLevel(logging.INFO)
+    main_logger.addHandler(basic_console_handler)
+
+    filterer_logger = logging.getLogger("wa_r.core.filter")
+    database_logger = logging.getLogger("wa_r.database")
+
+    filterer_logger.setLevel(logging.INFO)
+    filterer_logger.addHandler(basic_console_handler)
+
+    database_logger.setLevel(logging.INFO)
+    database_logger.addHandler(basic_console_handler)
+
+    if save_logs:
+        file_handler = logging.FileHandler(FILTERER_LOG_FILE_NAME, "a")
+        file_handler.setFormatter(BasicFileFormatter())
+
+        main_logger.addHandler(file_handler)
+        filterer_logger.addHandler(file_handler)
+        database_logger.addHandler(file_handler)
 
 def prepare_ingestor_loggers(save_logs: bool = False):
     main_logger = logging.getLogger("ingestor")

@@ -151,7 +151,7 @@ class AttachedMessagesDatabaseProcessor:
     def commit_changes(self) -> None:
         database_logger.info("Committing changes not committed yet...")
 
-        self.cursor.execute("VACUUM")
+       # self.cursor.execute("VACUUM")
         self.conn.commit()
 
         database_logger.info("Committing successful.")
@@ -164,7 +164,7 @@ class AttachedMessagesDatabaseProcessor:
     def filter_media_messages(self):
         database_logger.info("Filtering messages containing media...")
         self.cursor.execute("DELETE FROM ATTACHMENTS WHERE FILE_TYPE NOT IN (?, ?)",
-                            (wa_r.types.WPFileTypes.IMAGE_FILE_TYPE, wa_r.types.WPFileTypes.VIDEO_FILE_TYPE))
+                            (wa_r.types.WPFileTypes.IMAGE_FILE_TYPE.value, wa_r.types.WPFileTypes.VIDEO_FILE_TYPE.value))
         self.cursor.execute("DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT DISTINCT MESSAGE_ID FROM ATTACHMENTS)")
 
     def filter_origin_messages(self): # Destructive. This method cannot be done without applying origination.
@@ -191,29 +191,29 @@ class AttachedMessagesDatabaseProcessor:
                                             FROM ATTACHMENTS
                                         );""")
 
-    def filter_messages_by_file_name(self, file_whitelist: typing.Iterable[str]): # Destructive, WIP
+    def remove_messages_by_file_name(self, file_list: typing.Iterable[str], whitelist: bool = False): # Destructive, WIP
         database_logger.info("Filtering by file names...")
-        database_logger.debug("Filtering whitelist", extra = {"whitelisted_files": file_whitelist})
-        self.cursor.executescript("""DROP TABLE IF EXISTS WHITELISTED_FILES;
-                                     CREATE TEMPORARY TABLE WHITELISTED_FILES (FILE_NAME TEXT UNIQUE);""")
-        self.cursor.executemany("INSERT INTO WHITELISTED_FILES VALUES (?)", [(i,) for i in file_whitelist])
+        database_logger.debug("Filtering the file list", extra = {"files_to_remove": file_list})
+        self.cursor.executescript("""DROP TABLE IF EXISTS FILES_TO_REMOVE;
+                                     CREATE TEMPORARY TABLE FILES_TO_REMOVE (FILE_NAME TEXT UNIQUE);""")
+        self.cursor.executemany("INSERT INTO FILES_TO_REMOVE VALUES (?)", [(i,) for i in file_list])
 
-        self.cursor.execute("SELECT FILE_NAME FROM WHITELISTED_FILES EXCEPT SELECT FILE_NAME FROM ATTACHMENTS")
-        whitelisted_files_missing_in_db = [file_name[0] for file_name in self.cursor.fetchall()]
+        self.cursor.execute("SELECT FILE_NAME FROM FILES_TO_REMOVE EXCEPT SELECT FILE_NAME FROM ATTACHMENTS")
+        files_missing_in_db = [file_name[0] for file_name in self.cursor.fetchall()]
     
-        if whitelisted_files_missing_in_db:
-            database_logger.warning(f"{len(whitelisted_files_missing_in_db)} files in whitelist don't exist in database.", extra = {"missing_whitelisted_files_preview": whitelisted_files_missing_in_db[:25]})
+        if files_missing_in_db:
+            database_logger.warning(f"{len(files_missing_in_db)} files in the listed files to be removed don't exist in database.", extra = {"missing_listed_files_preview": files_missing_in_db[:25]})
 
-            if len(whitelisted_files_missing_in_db) > 25:
-                database_logger.warning("For seeing other whitelist files missing in database, set logging level to DEBUG.")
-                database_logger.debug("Full list of missing files:", extra = {"missing_whitelisted_files": whitelisted_files_missing_in_db})
+            if len(files_missing_in_db) > 25:
+                database_logger.warning("For seeing other files missing in database, set logging level to DEBUG.")
+                database_logger.debug("Full list of missing files:", extra = {"missing_listed_files": files_missing_in_db})
 
 
-        self.cursor.executescript("""DELETE FROM ATTACHMENTS WHERE FILE_NAME NOT IN (SELECT FILE_NAME FROM WHITELISTED_FILES);
-                                     DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT MESSAGE_ID FROM ATTACHMENTS);
-                                     DROP TABLE WHITELISTED_FILES;
-                                  """)
-
+        self.cursor.executescript(f"""DELETE FROM ATTACHMENTS WHERE FILE_NAME {'NOT' if whitelist else ''} IN (SELECT FILE_NAME FROM FILES_TO_REMOVE);
+                                      DELETE FROM MESSAGES WHERE MESSAGE_ID NOT IN (SELECT MESSAGE_ID FROM ATTACHMENTS);
+                                      DROP TABLE FILES_TO_REMOVE;
+                                   """)
+ 
     def _ensure_perceptual_hash_column(self):
         if self._perceptual_hash_column_exists:
             return
