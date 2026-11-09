@@ -61,7 +61,7 @@ def start_restoration_session(app_args):
     main_log.info("Starting to restoration...")
 
     try:
-        wa_r.core.restore.initiate_restoring_process(reference_db, app_args.media_directory, app_args.destination_directory)
+        wa_r.core.restore.initiate_restoring_process(reference_db, app_args.media_directory, app_args.destination_directory, app_args.owner_metadata, not app_args.skip_modify_date)
 
     except wa_r.exceptions.MultipleOriginFilesException:
         main_log.warning(

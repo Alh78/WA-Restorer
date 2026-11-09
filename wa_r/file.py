@@ -1,3 +1,4 @@
+import wa_r.constants
 import mutagen.mp4
 import wa_r.types
 import datetime
@@ -16,8 +17,8 @@ def read_file_message_lines(file_name: str):
 def write_new_exif_data(source: str,
                         destination: str,
                         exif_data: wa_r.types.WPMediaMetaData,
-                        add_owner: bool = False,
-                        edit_file_dates: bool = True):
+                        add_owner: bool = wa_r.constants.DEFAULT_OWNER_METADATA_RESTORATION_PREFERENCE,
+                        edit_file_dates: bool = wa_r.constants.DEFAULT_FILE_MODIFY_DATE_RESTORATION_PREFERENCE):
     if os.path.splitext(source)[-1].lower() in [".png", ".jpg", ".jpeg"]:
         dumped_timestamp = exif_data.timestamp.strftime("%Y:%m:%d %H:%M:%S")
 
@@ -34,10 +35,7 @@ def write_new_exif_data(source: str,
             zeroth_ifd[piexif.ImageIFD.Artist] = exif_data.owner.encode("utf-8")
 
         exif_ifd = {piexif.ExifIFD.DateTimeOriginal: dumped_timestamp,
-                    piexif.ExifIFD.DateTimeDigitized: dumped_timestamp,
-                    piexif.ExifIFD.OffsetTimeOriginal: "+3",
-                    piexif.ExifIFD.OffsetTimeDigitized: "+3",
-                    piexif.ExifIFD.OffsetTime: str(wa_r.constants.UTC_TIME_OFFSET) if wa_r.constants.UTC_TIME_OFFSET <= 0 else "+" + str(wa_r.constants.UTC_TIME_OFFSET)}
+                    piexif.ExifIFD.DateTimeDigitized: dumped_timestamp}
 
         exif_dict = {"0th": zeroth_ifd, "Exif": exif_ifd} # piexif.dump completes the remaining fields as blank areas.
 

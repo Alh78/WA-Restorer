@@ -1,4 +1,5 @@
 import wa_r.database
+import wa_r.constants
 import wa_r.factory
 import wa_r.file
 import wa_r.exceptions
@@ -9,8 +10,7 @@ import os
 writer_logger = logging.getLogger(__name__)
 
 def write_restored_metadata_to_file(
-        file_name: str, media_dir: str, dest_dir: str, reference_database: wa_r.database.AttachedMessagesDatabaseProcessor, device_brand: str = None, device_model: str = None
-):
+        file_name: str, media_dir: str, dest_dir: str, reference_database: wa_r.database.AttachedMessagesDatabaseProcessor, device_brand: str = None, device_model: str = None, owner_metadata_restoration: bool = wa_r.constants.DEFAULT_OWNER_METADATA_RESTORATION_PREFERENCE, file_modify_date_restoration: bool = wa_r.constants.DEFAULT_FILE_MODIFY_DATE_RESTORATION_PREFERENCE):
     writer_logger.info(f'Writing restored metadata to File(file_name="{file_name}")...')
 
     writer_logger.debug(
@@ -51,8 +51,8 @@ def write_restored_metadata_to_file(
             os.path.abspath(os.path.join(media_dir, file_name)),
             os.path.abspath(os.path.join(dest_dir, file_name)),
             exif_data,
-            add_owner=True,
-            edit_file_dates=True,
+            add_owner=owner_metadata_restoration,
+            edit_file_dates=file_modify_date_restoration,
         )
 
     except wa_r.exceptions.FileAlreadyContainsMetaDataException:
@@ -63,6 +63,6 @@ def write_restored_metadata_to_file(
 
 
 
-def initiate_restoring_process(reference_database: wa_r.database.AttachedMessagesDatabaseProcessor, media_dir: str, destination_dir: str):
+def initiate_restoring_process(reference_database: wa_r.database.AttachedMessagesDatabaseProcessor, media_dir: str, destination_dir: str, owner_metadata_restoration: bool, file_modify_date_restoration: bool):
     for media_file_name in os.listdir(media_dir):
-        write_restored_metadata_to_file(media_file_name, media_dir, destination_dir, reference_database)
+        write_restored_metadata_to_file(media_file_name, media_dir, destination_dir, reference_database, owner_metadata_restoration, file_modify_date_restoration)

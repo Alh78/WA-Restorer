@@ -57,6 +57,8 @@ if __name__ == "__main__":
     restorer_parser.add_argument("reference_database_file")
     restorer_parser.add_argument("media_directory")
     restorer_parser.add_argument("destination_directory")
+    restorer_parser.add_argument("--owner-metadata", action="store_true", default=False)
+    restorer_parser.add_argument("--skip-modify-date", action="store_true", default=False)
 
     ingestor_parser.set_defaults(func=start_ingestion)
     filterer_parser.set_defaults(func=start_filtration)

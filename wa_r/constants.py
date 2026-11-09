@@ -22,6 +22,8 @@ DEFAULT_METADATA_DATE_PRIORITY = wa_r.types.MetadataDatePriority.EARLIEST
 
 DEFAULT_INGESTOR_LANGUAGE_PREFERENCE = wa_r.types.BackupMessagesLangDetectionPreferences.AUTO_FAST
 
+DEFAULT_OWNER_METADATA_RESTORATION_PREFERENCE = False
+DEFAULT_FILE_MODIFY_DATE_RESTORATION_PREFERENCE = True
 
 UTC_TIME_OFFSET = int(
     (time.timezone if (time.localtime().tm_isdst == 0) else time.altzone) / -3600
