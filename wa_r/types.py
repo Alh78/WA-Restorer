@@ -61,7 +61,6 @@ class WPFileMetaData:
 class WPFileData:
     file_meta_data: WPFileMetaData
     file_hash: bytes
-
     def __post_init__(self):
         if not isinstance(self.file_meta_data, WPFileMetaData):
             raise TypeError(f"Expected WPFileMetaData, {type(self.file_meta_data).__name__} found")
@@ -129,3 +128,4 @@ class BackupMessagesLanguageFormat:
 
 class BackupMessagesLanguages(enum.Enum):
     TR_TR = "tr_tr"
+    EN_US = "en_us"
