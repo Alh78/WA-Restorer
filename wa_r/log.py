@@ -65,7 +65,7 @@ sameline_console_handler.setFormatter(BasicConsoleFormatter())
 
 
 def prepare_filterer_loggers(save_logs: bool = False):
-    main_logger = logging.getLogger("filterer")
+    main_logger = logging.getLogger("wa_r.console.filter")
     main_logger.setLevel(logging.INFO)
     main_logger.addHandler(basic_console_handler)
 
@@ -87,7 +87,7 @@ def prepare_filterer_loggers(save_logs: bool = False):
         database_logger.addHandler(file_handler)
 
 def prepare_ingestor_loggers(save_logs: bool = False):
-    main_logger = logging.getLogger("ingestor")
+    main_logger = logging.getLogger("wa_r.console.ingest")
     main_logger.setLevel(logging.INFO)
     main_logger.addHandler(basic_console_handler)
 
@@ -109,7 +109,7 @@ def prepare_ingestor_loggers(save_logs: bool = False):
         database_logger.addHandler(file_handler)
 
 def prepare_restorer_loggers(save_logs: bool = False):
-    main_logger = logging.getLogger("restorer")
+    main_logger = logging.getLogger("wa_r.console.restore")
     main_logger.setLevel(logging.INFO)
     main_logger.addHandler(basic_console_handler)
 
