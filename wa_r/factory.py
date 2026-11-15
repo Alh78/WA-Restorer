@@ -27,7 +27,7 @@ def package_message_data_raw(sender: str, # This function should be called only 
                                                                                                                            file_name_timestamp = None if not isinstance(file_name_timestamp, int) else datetime.datetime.fromtimestamp(file_name_timestamp)
                                                                                                                           ),
                                                                              file_hash = file_hash)
-                                             )
+                                         )
 
 def generate_media_meta_data(attached_message_data: wa_r.types.AttachedMessageData,
                              device_brand: str = None,
@@ -60,4 +60,4 @@ def generate_media_meta_data_raw(owner: str = None,
     return wa_r.types.WPMediaMetaData(owner = owner,
                                         device_brand = device_brand,
                                         device_model = device_model,
-                                        timestamp = datetime.datetime.fromtimestamp(timestamp_to_add))
+                                        timestamp = datetime.datetime.fromtimestamp(timestamp))
