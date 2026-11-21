@@ -16,12 +16,12 @@ class CompiledPatternsMap(dict[wa_r.types.BackupMessagesLanguages, re.Pattern]):
 
 BACKUP_MESSAGES_LANGUAGES_FORMATS: typing.Dict[wa_r.types.BackupMessagesLanguages, wa_r.types.BackupMessagesLanguageFormat] = {
     wa_r.types.BackupMessagesLanguages.TR_TR: wa_r.types.BackupMessagesLanguageFormat(
-        r"^(\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2})\s-\s([^:]+):\s(.*?)\s\(dosya ekli\)",
+        r"^(\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2})\s-\s([^:]+):\s\u200e(.*?)\s\(dosya ekli\)",
         r"^(\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2})",
         "%d.%m.%Y %H:%M",
     ),
     wa_r.types.BackupMessagesLanguages.EN_US: wa_r.types.BackupMessagesLanguageFormat(
-        r"^(\d{1,2}/\d{1,2}/\d{2},\s\d{1,2}:\d{2}[\s\u202f][AP]M)\s-\s([^:]+):\s(.*?)\s\(file attached\)",
+        r"^(\d{1,2}/\d{1,2}/\d{2},\s\d{1,2}:\d{2}[\s\u202f][AP]M)\s-\s([^:]+):\s\u200e(.*?)\s\(file attached\)",
         r"^(\d{1,2}/\d{1,2}/\d{2},\s\d{1,2}:\d{2}[\s\u202f][AP]M)",
         "%m/%d/%y, %I:%M %p",
     ),

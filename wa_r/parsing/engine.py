@@ -53,7 +53,7 @@ def deep_scan_backup_messages_language(messages_lines: typing.Iterable[str]) -> 
         raise wa_r.exceptions.NoLanguageFoundException()
 
     elif len(found_languages) > 1:
-        raise MultipleLanguagesFoundException(found_languages)
+        raise wa_r.exceptions.MultipleLanguagesFoundException(found_languages)
 
     return found_languages.pop()
 
@@ -66,7 +66,7 @@ def _parse_raw_message_data(line: str, line_index: int, message_pattern: re.Patt
 
     date = datetime.datetime.strptime(pattern_match.group(1), date_dt_format)
     sender = pattern_match.group(2)
-    file_name = pattern_match.group(3)[1:]
+    file_name = pattern_match.group(3)
 
     return wa_r.types.RawMessageData(date, sender, file_name, line_index)
 
